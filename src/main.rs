@@ -1,7 +1,6 @@
 mod encrypt;
 mod config;
 use std::str;
-use std::io;
 use clap::{App, Arg};
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
@@ -13,8 +12,13 @@ fn main() {
     let AESKey = "ytUQ7l2ZZu8mLvJZ";
     let DESiv = b"\x01\x02\x03\x04\x05\x06\x07\x08";
     let DESKey = "b3L26XNL";
+    let cwd = std::env::current_dir().unwrap();
+    let default_config_path = cwd.join("config.yml");
     let app = App::new(APP_NAME)
         .version(VERSION)
-        .about(DESCRIPTION);
+        .about(DESCRIPTION)
+        .arg(Arg::new("config").short('c').long("config").default_value(default_config_path.to_str().unwrap()).takes_value(true));
+        
     let matches = app.get_matches();
+
 }
