@@ -6,8 +6,13 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
 
 fn main() {
+    let cwd = std::env::current_dir().unwrap();
+    let default_config_path = cwd.join("config.yml");
     let app = App::new(APP_NAME)
         .version(VERSION)
-        .about(DESCRIPTION);
+        .about(DESCRIPTION)
+        .arg(Arg::new("config").short('c').long("config").default_value(default_config_path.to_str().unwrap()).takes_value(true));
+        
     let matches = app.get_matches();
+
 }
