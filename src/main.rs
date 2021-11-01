@@ -1,4 +1,5 @@
 mod encrypt;
+mod cpdaily;
 mod config;
 use std::str;
 use clap::{App, Arg};
@@ -22,5 +23,8 @@ fn main() {
         .arg(Arg::new("config").short('c').long("config").default_value(default_config_path.to_str().unwrap()).takes_value(true));
         
     let matches = app.get_matches();
+    
+    println!("{}",cpdaily::GetHostByName(String::from("青岛大学")));
+    
 
 }
