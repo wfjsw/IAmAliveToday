@@ -1,12 +1,19 @@
-extern crate rsa;
-extern crate des;
-extern crate aes;
-extern crate base64;
+use openssl::symm::{encrypt,Cipher};
+use std::str;
 
-fn DESEnc(content:String,key:String,iv:u8){
-    
+pub fn DESEnc(content:String,key:String,iv:&[u8]) -> String{
+    let cipher = Cipher::des_cbc();
+    let key = key.as_bytes();
+    let citxt = encrypt(cipher, key, Some(iv),content.as_bytes()).unwrap();
+    let s = openssl::base64::encode_block(&citxt);
+    return String::from(s);
 }
 
-fn AESEnc(content:String,key:String,iv:u8){
-    
+pub fn AESEnc(content:String,key:String,iv:&[u8]) -> String{
+    let cipher = Cipher::aes_128_cbc();
+    let key = key.as_bytes();
+    let citxt = encrypt(cipher, key, Some(iv),content.as_bytes()).unwrap();
+    let s = openssl::base64::encode_block(&citxt);
+
+    return String::from(s);
 }
