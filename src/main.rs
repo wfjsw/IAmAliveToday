@@ -12,6 +12,8 @@ fn main() {
     let AESKey = "ytUQ7l2ZZu8mLvJZ";
     let DESiv = b"\x01\x02\x03\x04\x05\x06\x07\x08";
     let DESKey = "b3L26XNL";
+    //Keys above for test temporarily
+    
     let cwd = std::env::current_dir().unwrap();
     let default_config_path = cwd.join("config.yml");
     let app = App::new(APP_NAME)
