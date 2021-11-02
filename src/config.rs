@@ -1,5 +1,5 @@
 use std::{fs::File, io::Read};
-
+use crate::cpdaily::structs::extensions::Extensions;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -23,8 +23,8 @@ pub struct DeviceInfo {
     pub system_version: String,
     pub system_name: String,
     pub device_id: String,
-    pub lat: String,
-    pub lon: String,
+    pub lat: f64,
+    pub lon: f64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ pub fn get_config(path: &str) -> Config {
 }
 
 impl User {
-    pub fn get_cpdaily_extension() -> String {
-        "com.cpdaily.extension".to_string()
+    pub fn get_cpdaily_extension(&self) -> String {
+        Extensions::from_user_id_and_deviceinfo(self.username.as_str(), &self.device_info).to_string()
     }
 }

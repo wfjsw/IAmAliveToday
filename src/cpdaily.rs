@@ -1,3 +1,6 @@
+pub mod client;
+pub mod crypto;
+pub mod structs;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};

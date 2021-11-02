@@ -1,6 +1,7 @@
 mod encrypt;
 mod cpdaily;
 mod config;
+
 use std::str;
 use clap::{App, Arg};
 
