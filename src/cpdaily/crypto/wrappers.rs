@@ -1,1 +1,1 @@
-pub mod first_v2;
+include!{"wrappers/first_v2_local.rs"}

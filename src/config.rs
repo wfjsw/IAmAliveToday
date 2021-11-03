@@ -25,6 +25,7 @@ pub struct DeviceInfo {
     pub device_id: String,
     pub lat: f64,
     pub lon: f64,
+    pub user_agent: String,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
