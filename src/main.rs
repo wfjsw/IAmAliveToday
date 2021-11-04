@@ -25,7 +25,7 @@ fn main() {
         
     let matches = app.get_matches();
     
-    println!("{}",cpdaily::GetHostByName(String::from("青岛大学")));
+    // println!("{}",cpdaily::GetHostByName(String::from("青岛大学")));
     
 
 }

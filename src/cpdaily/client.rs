@@ -1,4 +1,5 @@
 use crate::config::User;
+use crate::cpdaily::crypto::ciphers::{des, base64};
 
 use curl::easy::{Easy, List};
 use serde_json::Value;
@@ -14,7 +15,7 @@ impl Client {
     pub fn new(base_url: Option<&str>, user: &User) -> Client {
         Client {
             base_url: base_url.unwrap_or("").to_string(),
-            extension: user.get_cpdaily_extension(), // TODO: DES
+            extension: base64::encode(des::encrypt(&user.get_cpdaily_extension(), None, None).unwrap().as_slice()), // TODO: DES
             user_agent: user.device_info.user_agent.to_string(),
         }
     }
