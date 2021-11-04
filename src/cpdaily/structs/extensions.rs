@@ -1,7 +1,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::config::{User, DeviceInfo};
+use crate::config::{DeviceInfo};
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]

@@ -1,1 +1,1 @@
-include!{"traits/first_v2.rs"}
+pub mod first_v2;

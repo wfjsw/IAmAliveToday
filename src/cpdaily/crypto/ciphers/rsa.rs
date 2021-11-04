@@ -24,16 +24,27 @@ qcE2sdGKsNXswpIASU6maSxia2scPNx1smKS0FWlBf61Bst4CEWbyQJAZT69Xm1D
 QbHI5l5ymh+btw==
 -----END PRIVATE KEY-----";
 
-pub fn public_encrypt(data: &str, key: Option<&str>) -> Result<Vec<u8>, ErrorStack> {
+pub fn public_encrypt<'a>(data: &'a str, key: Option<&str>) -> Result<Vec<u8>, ErrorStack> {
     let rsa = Rsa::public_key_from_pem(key.unwrap_or(CPDAILY_RSA_PUBLIC).as_bytes())?;
     let mut encrypted = vec![0; rsa.size() as usize];
     rsa.public_encrypt(data.as_bytes(), &mut encrypted, Padding::PKCS1)?;
     Ok(encrypted)
 }
 
-pub fn private_decrypt(data: &str, key: Option<&str>) -> Result<Vec<u8>, ErrorStack> {
+pub fn private_decrypt(data: &[u8], key: Option<&str>) -> Result<String, ErrorStack> {
     let rsa = Rsa::private_key_from_pem(key.unwrap_or(CPDAILY_RSA_PRIVATE).as_bytes())?;
     let mut decrypted = vec![0; rsa.size() as usize];
-    rsa.private_decrypt(data.as_bytes(), &mut decrypted, Padding::PKCS1)?;
-    Ok(decrypted)
+    rsa.private_decrypt(data, &mut decrypted, Padding::PKCS1)?;
+    Ok(String::from_utf8(decrypted).unwrap().trim_end_matches('\0').to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::cpdaily::crypto::ciphers::rsa::{private_decrypt};
+    use crate::cpdaily::crypto::ciphers::base64::decode;
+
+    #[test]
+    fn test_rsa_decrypt() {
+        assert_eq!("4eb81128-4741-4879-b2cf-7079ed8c5d65|7Cf7my4F|7Llv2JZZ", private_decrypt(decode("sWBzAnDXCwawQ8V3qcXmG24HqHqPjRQwo98N2ADKGO2ghA37lveE+oirR0w7EubkGZx7bsi578P+gab8FUJEGPe/S8Bx1QCrWAbdEaeBFl6IEIuzWraxSBTguVAXtN0+9dh1w1rJK9Vkd1iLa72X233zCURdXLKhgb5zEpzpVok=").unwrap().as_slice(), None).unwrap());
+    }
 }

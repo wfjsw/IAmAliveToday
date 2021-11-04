@@ -1,16 +1,17 @@
 use crate::config::User;
 
 use curl::easy::{Easy, List};
+use serde_json::Value;
 use std::str;
 
-struct Client {
+pub struct Client {
     extension: String, 
     user_agent: String,
     base_url: String,
 }
 
 impl Client {
-    fn new(base_url: Option<&str>, user: &User) -> Client {
+    pub fn new(base_url: Option<&str>, user: &User) -> Client {
         Client {
             base_url: base_url.unwrap_or("").to_string(),
             extension: user.get_cpdaily_extension(), // TODO: DES
@@ -18,7 +19,7 @@ impl Client {
         }
     }
 
-    fn clone(&self, base_url: Option<&str>) -> Client {
+    pub fn clone(&self, base_url: Option<&str>) -> Client {
         Client {
             base_url: base_url.unwrap_or(self.base_url.as_str()).to_owned(),
             extension: self.extension.clone(),
@@ -26,42 +27,66 @@ impl Client {
         }
     }
 
-    fn get(&self, url: &str) -> Result<String, curl::Error> {
+    pub fn get(&self, url: &str) -> Result<String, curl::Error> {
         let mut headers = List::new();
-        headers.append(&("User-Agent: ".to_owned() + &self.user_agent));
-        headers.append(&("X-Extension: ".to_owned() + &self.extension));
+        headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
+        headers.append("clientType: cpdaily_student")?;
+        headers.append("deviceType: 1")?;
+        headers.append("CpdailyClientType: CPDAILY")?;
+        headers.append("CpdailyStandAlone: 0")?;
+
         let mut req = Easy::new();
         req.http_headers(headers)?;
-        req.url(&(self.base_url + url))?;
+        req.url(&(self.base_url.to_owned() + url))?;
         req.get(true)?;
 
-        let mut dst = Vec::new();
-        req.write_function(|data| {
-            dst.extend_from_slice(data);
-            Ok(data.len())
-        })?;
-
+        let mut dst  = Vec::new();
+        {
+            let mut transfer = req.transfer();
+            transfer.write_function(|data| {
+                dst.extend_from_slice(data);
+                Ok(data.len())
+            })?;
+        }
         req.perform()?;
         Ok(str::from_utf8(&dst).expect("Invalid UTF-8 Sequence").to_owned())
     }
 
-    fn post(&self, url: &str, data: &str) -> Result<String, curl::Error> {
+    pub fn get_json(&self, url: &str) -> Result<serde_json::Value, curl::Error> {
+        let body = self.get(url)?;
+        Ok(serde_json::from_str(&body).expect("Invalid JSON"))
+    }
+
+    pub fn post(&self, url: &str, data: &str) -> Result<String, curl::Error> {
         let mut headers = List::new();
-        headers.append(&("User-Agent: ".to_owned() + &self.user_agent));
+        headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
+        headers.append("clientType: cpdaily_student")?;
+        headers.append("deviceType: 1")?;
+        headers.append("CpdailyClientType: CPDAILY")?;
+        headers.append("CpdailyStandAlone: 0")?;
+        
         let mut req = Easy::new();
         req.http_headers(headers)?;
-        req.url(&(self.base_url + url))?;
+        req.url(&(self.base_url.to_owned() + url))?;
         req.post(true)?;
         req.post_field_size(data.len() as u64)?;
         req.post_fields_copy(data.as_bytes())?;
 
         let mut dst = Vec::new();
-        req.write_function(|data| {
-            dst.extend_from_slice(data);
-            Ok(data.len())
-        })?;
+        {
+            let mut transfer = req.transfer();
+            transfer.write_function(|data| {
+                dst.extend_from_slice(data);
+                Ok(data.len())
+            })?;
+        }
 
         req.perform()?;
         Ok(str::from_utf8(&dst).expect("Invalid UTF-8 Sequence").to_owned())
+    }
+
+    pub fn post_json(&self, url: &str, data: Value) -> Result<serde_json::Value, curl::Error> {
+        let body = self.post(url, &data.to_string())?;
+        Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 }
