@@ -22,6 +22,6 @@ mod tests {
     #[test]
     fn test_getak() {
         assert_eq!("ytUQ7l2ZZu8mLvJZ", getak("yZtuU8Qm", "7Llv2JZZ"));
-        assert_eq!("CCtO7l2ZNygoLvJZ", getak("CNCytgOo", "7Llv2JZZ"))
+        assert_eq!("CCtO7fm4NygoC7yF", getak("CNCytgOo", "7Cf7my4F"))
     }
 }

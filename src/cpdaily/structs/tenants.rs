@@ -117,7 +117,7 @@ impl Tenant {
 }
 
 impl TenantDetail {
-    pub fn create_login() -> LoginProvider {
+    pub fn create_login(&self) -> dyn LoginProvider {
         
     }
 }

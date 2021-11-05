@@ -3,12 +3,14 @@ use crate::cpdaily::crypto::ciphers::{des, base64};
 
 use curl::easy::{Easy, List};
 use serde_json::Value;
+use std::fs::File;
 use std::str;
 
 pub struct Client {
     extension: String, 
     user_agent: String,
     base_url: String,
+    cookie_jar: File,
 }
 
 impl Client {
@@ -17,14 +19,19 @@ impl Client {
             base_url: base_url.unwrap_or("").to_string(),
             extension: base64::encode(des::encrypt(&user.get_cpdaily_extension(), None, None).unwrap().as_slice()), // TODO: DES
             user_agent: user.device_info.user_agent.to_string(),
+            cookie_jar: tempfile::tempfile().unwrap(),
         }
     }
 
-    pub fn clone(&self, base_url: Option<&str>) -> Client {
+    pub fn clone(&self, base_url: Option<&str>, fresh_cookie: bool) -> Client {
         Client {
             base_url: base_url.unwrap_or(self.base_url.as_str()).to_owned(),
             extension: self.extension.clone(),
             user_agent: self.user_agent.clone(),
+            cookie_jar: match fresh_cookie {
+                true => tempfile::tempfile().unwrap(),
+                false => self.cookie_jar, // UNSAFE?
+            }
         }
     }
 
