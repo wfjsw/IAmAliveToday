@@ -2,7 +2,6 @@ use crate::config::User;
 use crate::cpdaily::crypto::ciphers::{des, base64};
 
 use curl::easy::{Easy, List};
-use openssl::fips::enabled;
 use serde_json::Value;
 use std::str;
 
