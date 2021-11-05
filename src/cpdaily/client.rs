@@ -2,6 +2,7 @@ use crate::config::User;
 use crate::cpdaily::crypto::ciphers::{des, base64};
 
 use curl::easy::{Easy, List};
+use openssl::fips::enabled;
 use serde_json::Value;
 use std::str;
 
@@ -28,7 +29,40 @@ impl Client {
         }
     }
 
-    pub fn get(&self, url: &str) -> Result<String, curl::Error> {
+    pub fn perform(url: &str, headers: Option<List>, method: Option<&str>, body: Option<&str>, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
+        let mut data = Vec::new();
+
+        let mut easy = Easy::new();
+        easy.url(url)?;
+        if headers.is_some() {
+            easy.http_headers(headers.unwrap())?;
+        }
+
+        match method {
+            Some("POST") => easy.post(true)?,
+            _ => easy.get(true)?,
+        }
+
+        if body.is_some() {
+            easy.post_field_size(body.unwrap().len() as u64)?;
+            easy.post_fields_copy(body.unwrap().as_bytes())?;
+        }
+
+        easy.fail_on_error(fail_on_error)?;
+
+        {
+            let mut transfer = easy.transfer();
+            transfer.write_function(|r| {
+                data.extend_from_slice(r);
+                Ok(r.len())
+            }).expect("Failed to set write function");
+            transfer.perform().expect("Unable to perform request");
+        }
+
+        Ok((easy.response_code().unwrap(), str::from_utf8(&data).expect("Invalid UTF-8 Sequence").to_string()))
+    }
+
+    pub fn get(&self, url: &str) -> Result<(u32, String), curl::Error> {
         let mut headers = List::new();
         headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
         headers.append("clientType: cpdaily_student")?;
@@ -36,29 +70,15 @@ impl Client {
         headers.append("CpdailyClientType: CPDAILY")?;
         headers.append("CpdailyStandAlone: 0")?;
 
-        let mut req = Easy::new();
-        req.http_headers(headers)?;
-        req.url(&(self.base_url.to_owned() + url))?;
-        req.get(true)?;
-
-        let mut dst  = Vec::new();
-        {
-            let mut transfer = req.transfer();
-            transfer.write_function(|data| {
-                dst.extend_from_slice(data);
-                Ok(data.len())
-            })?;
-        }
-        req.perform()?;
-        Ok(str::from_utf8(&dst).expect("Invalid UTF-8 Sequence").to_owned())
+        Client::perform(url, Some(headers), Some("GET"), None, true)
     }
 
     pub fn get_json(&self, url: &str) -> Result<serde_json::Value, curl::Error> {
-        let body = self.get(url)?;
+        let body = self.get(url)?.1;
         Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 
-    pub fn post(&self, url: &str, data: &str) -> Result<String, curl::Error> {
+    pub fn post(&self, url: &str, data: &str) -> Result<(u32, String), curl::Error> {
         let mut headers = List::new();
         headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
         headers.append("clientType: cpdaily_student")?;
@@ -66,28 +86,11 @@ impl Client {
         headers.append("CpdailyClientType: CPDAILY")?;
         headers.append("CpdailyStandAlone: 0")?;
         
-        let mut req = Easy::new();
-        req.http_headers(headers)?;
-        req.url(&(self.base_url.to_owned() + url))?;
-        req.post(true)?;
-        req.post_field_size(data.len() as u64)?;
-        req.post_fields_copy(data.as_bytes())?;
-
-        let mut dst = Vec::new();
-        {
-            let mut transfer = req.transfer();
-            transfer.write_function(|data| {
-                dst.extend_from_slice(data);
-                Ok(data.len())
-            })?;
-        }
-
-        req.perform()?;
-        Ok(str::from_utf8(&dst).expect("Invalid UTF-8 Sequence").to_owned())
+        Client::perform(url, Some(headers), Some("POST"), Some(data), true)
     }
 
     pub fn post_json(&self, url: &str, data: Value) -> Result<serde_json::Value, curl::Error> {
-        let body = self.post(url, &data.to_string())?;
+        let body = self.post(url, &data.to_string())?.1;
         Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 }

@@ -23,7 +23,7 @@ fn get(url: &str) -> Result<Value> {
         let mut transfer = easy.transfer();
         transfer.write_function(|r| {
             data.extend_from_slice(r);
-            Ok(data.len())
+            Ok(r.len())
         }).unwrap();
         transfer.perform().unwrap();
     }
