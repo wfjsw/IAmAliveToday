@@ -38,7 +38,7 @@ impl FirstV2 for Local {
         let result = client.post_json("/app/auth/dynamic/secret/getSecretKey/v-8222", json!({
             "p": encoded_p,
             "s": hash(&s).unwrap(),
-        })).unwrap();
+        }), true).unwrap();
 
         Local::from_server_response(result)
     }

@@ -3,7 +3,14 @@ use curl::easy::List;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::cpdaily::client::Client;
-use crate::cpdaily::loginprovider::LoginProvider;
+use crate::cpdaily::loginprovider::{LoginProvider, iap, cas, rsa};
+
+pub enum LoginProviderType {
+    UNKNOWN,
+    IAP,
+    RSA,
+    CAS,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -111,14 +118,34 @@ pub struct TenantDetail {
 
 impl Tenant {
     pub fn get_info(&self) -> anyhow::Result<TenantDetail> {
-        let result = get("")?;
+        let url = format!("https://mobile.campushoy.com/v6/config/guest/tenant/info?ids={}", urlencoding::encode(&self.id));
+        let result = get(&url)?;
         Ok(serde_json::from_value(result.get("data").expect("Data not found").get(0).expect("School not found").to_owned())?)
     }
-}
 
-impl TenantDetail {
-    pub fn create_login(&self) -> dyn LoginProvider {
-        
+    pub fn get_login_type(&self) -> LoginProviderType {
+        match self.join_type.as_str() {
+            "CLOUD" => LoginProviderType::IAP,
+            "NOTCLOUD" => {
+                if self.ids_url.ends_with("/authserver") {
+                    LoginProviderType::CAS
+                } else if self.ids_url.ends_with("/amp-auth-adapter") {
+                    LoginProviderType::RSA
+                } else {
+                    LoginProviderType::UNKNOWN
+                }
+            },
+            _ => LoginProviderType::UNKNOWN,
+        }        
+    }
+
+    pub fn create_login(&self) -> Box<dyn LoginProvider> {
+        match self.get_login_type() {
+            LoginProviderType::IAP => Box::new(iap::IAP{url: self.ids_url.to_owned()}),
+            LoginProviderType::CAS => Box::new(cas::CAS{url: self.ids_url.to_owned()}),
+            LoginProviderType::RSA => Box::new(rsa::RSA{url: self.ids_url.to_owned()}),
+            _ => unimplemented!(),
+        }
     }
 }
 
@@ -126,7 +153,7 @@ fn get(url: &str) -> anyhow::Result<Value> {
     let mut headers = List::new();
     headers.append("Accept: application/json").unwrap();
     headers.append("User-Agent: Mozilla/5.0 (Linux; U; Android 8.1.0; zh-cn; BLA-AL00 Build/HUAWEIBLA-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.132 MQQBrowser/8.9 Mobile Safari/537.36").unwrap();
-    let data = Client::perform(url, Some(headers), Some("GET"), None, true)?.1;
+    let data = Client::perform(url, Some(headers), Some("GET"), None, true, None)?.1;
     let parsed = serde_json::from_str(&data).expect("Parsing JSON");
     Ok(parsed)
 }

@@ -15,7 +15,7 @@ fn get(url: &str) -> Result<Value> {
     let mut headers = List::new();
     headers.append("Accept: application/json").unwrap();
     headers.append("User-Agent: Mozilla/5.0 (Linux; U; Android 8.1.0; zh-cn; BLA-AL00 Build/HUAWEIBLA-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.132 MQQBrowser/8.9 Mobile Safari/537.36").unwrap();
-    let data = Client::perform(url, Some(headers), Some("GET"), None, true)?.1;
+    let data = Client::perform(url, Some(headers), Some("GET"), None, true, None)?.1;
     let parsed = serde_json::from_str(&data).expect("Parsing JSON");
     Ok(parsed)
 }
