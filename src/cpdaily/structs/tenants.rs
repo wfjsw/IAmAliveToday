@@ -153,7 +153,7 @@ impl Tenant {
 impl TenantDetail {
     pub fn get_url(&self) -> Result<String, ParseError> {
         let result = Url::parse(&self.amp_url)?;
-        
+        Ok(format!("{}://{}", result.scheme(), result.host_str().unwrap()))
     }
 }
 
