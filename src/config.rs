@@ -38,7 +38,7 @@ pub struct FormFillAction {
 
 }
 
-pub fn get_config(path: &str) -> Config {
+pub fn load_config(path: &str) -> Config {
     let mut file = File::open(path).unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();

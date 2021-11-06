@@ -40,7 +40,9 @@ impl LoginProvider for IAP {
             todo!();
         }
 
-        let login_result = session.post(&format!("{}/doLogin", &self.url), "", true)?;
+        let param_str = serde_urlencoded::to_string(params)?;
+
+        let login_result = session.post(&format!("{}/doLogin?{}", &self.url, &param_str), "", true)?;
         if login_result.0 == 302 {
             session.get(&login_result.1, true)?;
             Ok(())

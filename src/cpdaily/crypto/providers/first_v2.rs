@@ -1,3 +1,4 @@
+use curl::easy::List;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -26,7 +27,7 @@ impl Local {
 }
 
 impl FirstV2 for Local {
-    fn new(client: &Client) -> Self {
+    fn new() -> Self {
         // fetch from getSecret
 
         let uuid = Uuid::new_v4();
@@ -35,28 +36,38 @@ impl FirstV2 for Local {
         let encoded_p = base64::encode(&ciphertext_p);
         let s = format!("p={}&2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", encoded_p);
 
-        let result = client.post_json("/app/auth/dynamic/secret/getSecretKey/v-8222", json!({
+        let result = post_json("/app/auth/dynamic/secret/getSecretKey/v-8222", json!({
             "p": encoded_p,
             "s": hash(&s).unwrap(),
-        }), true).unwrap();
+        })).unwrap();
 
         Local::from_server_response(result)
     }
 
-    fn aes_encrypt(&self, text: &str) -> Result<&str, &str> {
+    fn encrypt(&self, text: &str) -> Result<&str, &str> {
         todo!()
     }
 
-    fn aes_decrypt(&self, text: &str) -> Result<&str, &str> {
+    fn decrypt(&self, text: &str) -> Result<&str, &str> {
         todo!()
     }
 }
+
+fn post_json(url: &str, data: Value) -> anyhow::Result<Value> {
+    let mut headers = List::new();
+    headers.append("Accept: application/json").unwrap();
+    headers.append("User-Agent: Mozilla/5.0 (Linux; U; Android 8.1.0; zh-cn; BLA-AL00 Build/HUAWEIBLA-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.132 MQQBrowser/8.9 Mobile Safari/537.36").unwrap();
+    let data = Client::perform(url, Some(headers), Some("GET"), Some(&data.to_string()), true, None)?.1;
+    let parsed = serde_json::from_str(&data).expect("Parsing JSON");
+    Ok(parsed)
+}
+
 
 
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use crate::cpdaily::crypto::wrappers::first_v2::Local;
+    use crate::cpdaily::crypto::providers::first_v2::Local;
 
     #[test]
     fn test_parse_first_v2_get_secret_response() {
