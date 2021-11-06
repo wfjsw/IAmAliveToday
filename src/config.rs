@@ -9,7 +9,7 @@ pub struct Config {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct User {
-    pub school_name: String,
+    pub school: String,
     pub username: String,
     pub password: String,
     pub actions: Vec<Action>,
@@ -29,21 +29,19 @@ pub struct DeviceInfo {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag="type")]
 pub enum Action {
-    FormFill(FormFillAction),
+    CounselorFormFill(crate::actions::CounselorFormFillAction),
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct FormFillAction {
 
-}
 
-pub fn load_config(path: &str) -> Config {
-    let mut file = File::open(path).unwrap();
+pub fn load_config(path: &str) -> anyhow::Result<Config> {
+    let mut file = File::open(path)?;
     let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-    let config: Config = serde_yaml::from_str(&contents).unwrap();
-    config
+    file.read_to_string(&mut contents)?;
+    let config: Config = serde_yaml::from_str(&contents)?;
+    Ok(config)
 }
 
 impl User {

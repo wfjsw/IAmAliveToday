@@ -5,7 +5,6 @@ use curl::easy::{Easy, List};
 use serde_json::Value;
 use tempfile::NamedTempFile;
 use std::collections::HashMap;
-use std::fs::File;
 use std::io::{Read, Write, Seek};
 use std::str;
 
@@ -115,8 +114,8 @@ impl Client {
         }
     }
 
-    pub fn get(&self, url: &str, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
-        let mut headers = List::new();
+    pub fn get(&self, url: &str, headers: Option<List>, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
+        let mut headers = headers.unwrap_or_else(|| List::new());
         headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
         headers.append("clientType: cpdaily_student")?;
         headers.append("deviceType: 1")?;
@@ -126,13 +125,15 @@ impl Client {
         Client::perform(url, Some(headers), Some("GET"), None, fail_on_error, Some(&self.cookie_jar))
     }
 
-    pub fn get_json(&self, url: &str, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
-        let body = self.get(url, fail_on_error)?.1;
+    pub fn get_json(&self, url: &str, headers: Option<List>, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
+        let mut headers = headers.unwrap_or_else(|| List::new());
+        headers.append("Accept: application/json")?;
+        let body = self.get(url, Some(headers), fail_on_error)?.1;
         Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 
-    pub fn post(&self, url: &str, data: &str, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
-        let mut headers = List::new();
+    pub fn post(&self, url: &str, data: &str, headers: Option<List>, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
+        let mut headers = headers.unwrap_or_else(|| List::new());
         headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
         headers.append("clientType: cpdaily_student")?;
         headers.append("deviceType: 1")?;
@@ -142,8 +143,11 @@ impl Client {
         Client::perform(url, Some(headers), Some("POST"), Some(data), fail_on_error, Some(&self.cookie_jar))
     }
 
-    pub fn post_json(&self, url: &str, data: Value, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
-        let body = self.post(url, &data.to_string(), fail_on_error)?.1;
+    pub fn post_json(&self, url: &str, data: Value, headers: Option<List>, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
+        let mut headers = headers.unwrap_or_else(|| List::new());
+        headers.append("Content-Type: application/json")?;
+        headers.append("Accept: application/json")?;
+        let body = self.post(url, &data.to_string(), Some(headers), fail_on_error)?.1;
         Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 }

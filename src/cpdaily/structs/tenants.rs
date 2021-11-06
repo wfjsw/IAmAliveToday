@@ -2,6 +2,7 @@
 use curl::easy::List;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use url::{ParseError, Url};
 use crate::cpdaily::client::Client;
 use crate::cpdaily::loginprovider::{LoginProvider, iap, cas, rsa};
 
@@ -146,6 +147,13 @@ impl Tenant {
             LoginProviderType::RSA => Box::new(rsa::RSA{url: self.ids_url.to_owned()}),
             _ => unimplemented!(),
         }
+    }
+}
+
+impl TenantDetail {
+    pub fn get_url(&self) -> Result<String, ParseError> {
+        let result = Url::parse(&self.amp_url)?;
+        
     }
 }
 

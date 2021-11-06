@@ -23,8 +23,8 @@ struct LoginParams {
 impl LoginProvider for IAP {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
         // url = something.com/iap
-        let lt_info = session.post_json(&format!("{}/security/lt", &self.url), json!({}), true)?;
-        let mut params = LoginParams {
+        let lt_info = session.post_json(&format!("{}/security/lt", &self.url), json!({}), None, true)?;
+        let params = LoginParams {
             lt: lt_info.get("result").unwrap().get("_lt").unwrap().as_str().unwrap().to_string(),
             remember_me: false,
             dllt: "".to_string(),
@@ -42,9 +42,9 @@ impl LoginProvider for IAP {
 
         let param_str = serde_urlencoded::to_string(params)?;
 
-        let login_result = session.post(&format!("{}/doLogin?{}", &self.url, &param_str), "", true)?;
+        let login_result = session.post(&format!("{}/doLogin?{}", &self.url, &param_str), "", None, true)?;
         if login_result.0 == 302 {
-            session.get(&login_result.1, true)?;
+            session.get(&login_result.1, None, true)?;
             Ok(())
         } else {
             let result_obj : Value = serde_json::from_str(&login_result.1).unwrap();
@@ -61,7 +61,7 @@ impl LoginProvider for IAP {
 
 impl IAP {
     fn get_need_captcha_url(&self, session: &Client, username: &str) -> anyhow::Result<bool> {
-        let result = session.post_json(&format!("{}/needCaptcha?username={}", &self.url, username), json!({}), false)?;
+        let result = session.post_json(&format!("{}/needCaptcha?username={}", &self.url, username), json!({}), None, false)?;
         Ok(result.get("needCaptcha").unwrap().as_bool().unwrap())
     }
 

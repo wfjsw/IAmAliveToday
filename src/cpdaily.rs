@@ -26,7 +26,16 @@ pub fn get_all_tenants() -> Result<Vec<Tenant>> {
     Ok(tenants)
 }
 
-
+pub fn match_school_from_tenant_list<'a>(list: &'a Vec<Tenant>, identifier: &str) -> anyhow::Result<&'a Tenant> {
+    for tenant in list {
+        if tenant.id == identifier {
+            return Ok(tenant);
+        } else if tenant.name.contains(identifier) {
+            return Ok(tenant);
+        }
+    }
+    Err(anyhow::anyhow!("No matching tenant found"))
+}
 
 #[cfg(test)]
 mod tests {

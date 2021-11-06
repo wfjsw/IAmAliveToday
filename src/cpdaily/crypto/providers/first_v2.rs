@@ -3,10 +3,12 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::cpdaily::client::Client;
-use crate::cpdaily::crypto::traits::first_v2::FirstV2;
+use crate::cpdaily::crypto::ciphers::aes::{self, getak};
+use crate::cpdaily::crypto::traits::first_v2::{FirstV2, KeyType};
 use crate::cpdaily::crypto::ciphers::{rsa, base64, md5::hash};
-const ckey: &'static str = "CNCytgOo";
-const fkey: &'static str = "yZtuU8Qm";
+const CKEY: &'static str = "CNCytgOo";
+const FKEY: &'static str = "yZtuU8Qm";
+const IV: &[u8; 16] =  b"\x01\x02\x03\x04\x05\x06\x07\x08\t\x01\x02\x03\x04\x05\x06\x07";
 
 pub struct Local {
     chk: String,
@@ -44,12 +46,25 @@ impl FirstV2 for Local {
         Local::from_server_response(result)
     }
 
-    fn encrypt(&self, text: &str) -> Result<&str, &str> {
-        todo!()
+    fn encrypt(&self, text: &str, key_type: KeyType) -> anyhow::Result<String> {
+        let key = match key_type {
+            KeyType::C => getak(CKEY, &self.chk),
+            KeyType::F => getak(FKEY, &self.fhk),
+        };
+
+        let ciphertext = aes::encrypt(text.as_bytes(), &key.as_bytes(), IV).unwrap();
+        Ok(base64::encode(&ciphertext))
     }
 
-    fn decrypt(&self, text: &str) -> Result<&str, &str> {
-        todo!()
+    fn decrypt(&self, text: &str, key_type: KeyType) -> anyhow::Result<String> {
+        let key = match key_type {
+            KeyType::C => getak(CKEY, &self.chk),
+            KeyType::F => getak(FKEY, &self.fhk),
+        };
+
+        let ciphertext = base64::decode(text)?;
+        let cleartext = aes::decrypt(&ciphertext, &key.as_bytes(), IV)?;
+        Ok(String::from_utf8(cleartext).unwrap())
     }
 }
 
