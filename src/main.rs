@@ -2,31 +2,37 @@ mod cpdaily;
 mod config;
 mod actions;
 
-use std::str;
-use clap::{App, Arg};
+use std::{env, str};
+use getopts::{Matches, Options};
 
 use cpdaily::crypto::traits::first_v2::FirstV2;
 use cpdaily::crypto::providers::first_v2;
 use cpdaily::client::Client;
 use config::Action;
 
-const APP_NAME: &str = env!("CARGO_PKG_NAME");
-const VERSION: &str = env!("CARGO_PKG_VERSION");
-const DESCRIPTION: &str = env!("CARGO_PKG_DESCRIPTION");
-
 fn main() {
-    let cwd = std::env::current_dir().unwrap();
+    #[cfg(build = "release")]
+    #[cfg(feature = "sentry")]
+    let _guard = {
+        let dsn = env!("SENTRY_DSN");
+
+        sentry::init((dsn.unwrap(), sentry::ClientOptions {
+            release: sentry::release_name!(),
+            ..Default::default()
+        }))
+    };
+    let cwd = env::current_dir().unwrap();
     let default_config_path = cwd.join("config.yml");
-    let app = App::new(APP_NAME)
-        .version(VERSION)
-        .about(DESCRIPTION)
-        .arg(Arg::new("config").short('c').long("config").default_value(default_config_path.to_str().unwrap()).takes_value(true));
-        
-    let matches = app.get_matches();
+
+    let matches = parse_options();
+
+    if matches.opt_present("h") {
+        return;
+    }
     
     // Load Config
-    let config_file_path = matches.value_of("config").unwrap();
-    let config = config::load_config(config_file_path).expect("Config file not found");
+    let config_file_path = matches.opt_str("c").unwrap_or(default_config_path.to_str().unwrap().to_string());
+    let config = config::load_config(&config_file_path).expect("Config file not found");
 
     // Initialize crypto providers
     let first_v2_provider = first_v2::Local::new();
@@ -36,12 +42,15 @@ fn main() {
 
     // For each user
     for user in config.users {
-        let client = Client::new(None, &user);
+        let mut client = Client::new(None, &user);
         let tenant = cpdaily::match_school_from_tenant_list(&tenant_list, &user.school).unwrap();
         let login_provider = tenant.create_login();
         login_provider.login(&client, &user.username, &user.password).unwrap();
 
         let tenant_detail = tenant.get_info().unwrap();
+
+        let base_url = tenant_detail.get_url().unwrap();
+        client.set_base_url(&base_url);
 
         for action in user.actions {
             match action {
@@ -52,4 +61,27 @@ fn main() {
             }
         }
     }
+}
+
+
+fn parse_options() -> Matches {
+    let args: Vec<String> = env::args().collect();
+    let program = args[0].clone();
+
+    let mut opts = Options::new();
+    opts.optopt("c", "config", "config file (default: config.yml)", "PATH");
+    opts.optflag("h", "help", "print this help menu");
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => { m }
+        Err(f) => { panic!("{}", f.to_string()) }
+    };
+    if matches.opt_present("h") {
+        print_usage(&program, opts);
+    }
+    matches
+}
+
+fn print_usage(program: &str, opts: Options) {
+    let brief = format!("Usage: {} [options]", program);
+    print!("{}", opts.usage(&brief));
 }

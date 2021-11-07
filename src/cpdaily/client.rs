@@ -2,6 +2,7 @@ use crate::config::User;
 use crate::cpdaily::crypto::ciphers::{des, base64};
 
 use curl::easy::{Easy, List};
+use reqwest::header::HeaderMap;
 use serde_json::Value;
 use tempfile::NamedTempFile;
 use std::collections::HashMap;
@@ -46,7 +47,11 @@ impl Client {
         }
     }
 
-    pub fn perform(url: &str, headers: Option<List>, method: Option<&str>, body: Option<&str>, fail_on_error: bool, cookie_file: Option<&NamedTempFile>) -> Result<(u32, String), curl::Error> {
+    pub fn set_base_url(&mut self, base_url: &str) {
+        self.base_url = base_url.to_string();
+    }
+
+    pub fn perform(url: &str, headers: Option<HeaderMap>, method: Option<&str>, body: Option<&str>, fail_on_error: bool, cookie_file: Option<&NamedTempFile>) -> Result<(u32, String), curl::Error> {
         let mut data = Vec::new();
         let mut response_header = HashMap::new();
 
@@ -114,26 +119,26 @@ impl Client {
         }
     }
 
-    pub fn get(&self, url: &str, headers: Option<List>, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
-        let mut headers = headers.unwrap_or_else(|| List::new());
-        headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
-        headers.append("clientType: cpdaily_student")?;
-        headers.append("deviceType: 1")?;
-        headers.append("CpdailyClientType: CPDAILY")?;
-        headers.append("CpdailyStandAlone: 0")?;
+    pub fn get(&self, url: &str, headers: Option<HeaderMap>, fail_on_error: bool) -> Result<(u32, String), reqwest::Error> {
+        let mut headers = headers.unwrap_or_else(|| HeaderMap::new());
+        headers.insert(&("User-Agent: ".to_owned() + &self.user_agent))?;
+        headers.insert("clientType: cpdaily_student")?;
+        headers.insert("deviceType: 1")?;
+        headers.insert("CpdailyClientType: CPDAILY")?;
+        headers.insert("CpdailyStandAlone: 0")?;
 
         Client::perform(url, Some(headers), Some("GET"), None, fail_on_error, Some(&self.cookie_jar))
     }
 
-    pub fn get_json(&self, url: &str, headers: Option<List>, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
-        let mut headers = headers.unwrap_or_else(|| List::new());
+    pub fn get_json(&self, url: &str, headers: Option<HeaderMap>, fail_on_error: bool) -> Result<serde_json::Value, reqwest::Error> {
+        let mut headers = headers.unwrap_or_else(|| HeaderMap::new());
         headers.append("Accept: application/json")?;
         let body = self.get(url, Some(headers), fail_on_error)?.1;
         Ok(serde_json::from_str(&body).expect("Invalid JSON"))
     }
 
-    pub fn post(&self, url: &str, data: &str, headers: Option<List>, fail_on_error: bool) -> Result<(u32, String), curl::Error> {
-        let mut headers = headers.unwrap_or_else(|| List::new());
+    pub fn post(&self, url: &str, data: &str, headers: Option<HeaderMap>, fail_on_error: bool) -> Result<(u32, String), reqwest::Error> {
+        let mut headers = headers.unwrap_or_else(|| HeaderMap::new());
         headers.append(&("User-Agent: ".to_owned() + &self.user_agent))?;
         headers.append("clientType: cpdaily_student")?;
         headers.append("deviceType: 1")?;
@@ -143,8 +148,8 @@ impl Client {
         Client::perform(url, Some(headers), Some("POST"), Some(data), fail_on_error, Some(&self.cookie_jar))
     }
 
-    pub fn post_json(&self, url: &str, data: Value, headers: Option<List>, fail_on_error: bool) -> Result<serde_json::Value, curl::Error> {
-        let mut headers = headers.unwrap_or_else(|| List::new());
+    pub fn post_json(&self, url: &str, data: Value, headers: Option<HeaderMap>, fail_on_error: bool) -> Result<serde_json::Value, reqwest::Error> {
+        let mut headers = headers.unwrap_or_else(|| HeaderMap::new());
         headers.append("Content-Type: application/json")?;
         headers.append("Accept: application/json")?;
         let body = self.post(url, &data.to_string(), Some(headers), fail_on_error)?.1;
