@@ -1,4 +1,4 @@
-use super::client::Client;
+use reqwest::blocking::Client;
 
 pub mod cas;
 pub mod iap;

@@ -3,11 +3,11 @@ mod config;
 mod actions;
 
 use std::{env, str};
+use cpdaily::client;
 use getopts::{Matches, Options};
 
 use cpdaily::crypto::traits::first_v2::FirstV2;
 use cpdaily::crypto::providers::first_v2;
-use cpdaily::client::Client;
 use config::Action;
 
 fn main() {
@@ -42,7 +42,7 @@ fn main() {
 
     // For each user
     for user in config.users {
-        let mut client = Client::new(None, &user);
+        let client = client::new(&user).unwrap();
         let tenant = cpdaily::match_school_from_tenant_list(&tenant_list, &user.school).unwrap();
         let login_provider = tenant.create_login();
         login_provider.login(&client, &user.username, &user.password).unwrap();
@@ -50,15 +50,13 @@ fn main() {
         let tenant_detail = tenant.get_info().unwrap();
 
         let base_url = tenant_detail.get_url().unwrap();
-        client.set_base_url(&base_url);
-
         for action in user.actions {
             match action {
                 Action::CounselorFormFill(form_fill) => {
-                    actions::counselor_form_fill::perform(&client, &form_fill)
+                    actions::counselor_form_fill::perform(&client, &base_url, &form_fill).unwrap()
                 }
                 _ => unimplemented!("Unknown action type.")
-            }
+            };
         }
     }
 }

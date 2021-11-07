@@ -1,8 +1,8 @@
+use reqwest::{StatusCode, blocking::Client};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::LoginProvider;
-use crate::cpdaily::client::Client;
 
 pub struct IAP {
     pub url: String,
@@ -23,7 +23,10 @@ struct LoginParams {
 impl LoginProvider for IAP {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
         // url = something.com/iap
-        let lt_info = session.post_json(&format!("{}/security/lt", &self.url), json!({}), None, true)?;
+        // let lt_info = session.post_json(&format!("{}/security/lt", &self.url), json!({}), None, true)?;
+        let lt_info : Value = session.post(&format!("{}/security/lt", &self.url))
+            .json(&json!({}))
+            .send()?.json()?;
         let params = LoginParams {
             lt: lt_info.get("result").unwrap().get("_lt").unwrap().as_str().unwrap().to_string(),
             remember_me: false,
@@ -40,14 +43,19 @@ impl LoginProvider for IAP {
             todo!();
         }
 
-        let param_str = serde_urlencoded::to_string(params)?;
+        // TODO: Fix this. This is wrong.
 
-        let login_result = session.post(&format!("{}/doLogin?{}", &self.url, &param_str), "", None, true)?;
-        if login_result.0 == 302 {
-            session.get(&login_result.1, None, true)?;
+        let login_result = session.post(&format!("{}/doLogin", &self.url))
+            .query(&params)
+            .body("")
+            .send()?;
+
+        if login_result.status() == StatusCode::FOUND {
+            // session.get(&login_result.1, None, true)?;
+            session.get(&login_result.headers().get("location").unwrap().to_str().unwrap().to_string()).send()?;
             Ok(())
         } else {
-            let result_obj : Value = serde_json::from_str(&login_result.1).unwrap();
+            let result_obj : Value = login_result.json()?;
             let result_code = result_obj.get("resultCode").unwrap().as_str().unwrap();
             match result_code {
                 "CAPTCHA_NOTMATCH" => Err(anyhow::anyhow!("CAPTCHA_NOTMATCH")),
@@ -61,7 +69,11 @@ impl LoginProvider for IAP {
 
 impl IAP {
     fn get_need_captcha_url(&self, session: &Client, username: &str) -> anyhow::Result<bool> {
-        let result = session.post_json(&format!("{}/needCaptcha?username={}", &self.url, username), json!({}), None, false)?;
+        let result : Value = session.post(&format!("{}/needCaptcha", &self.url))
+            .query(&[("username", username)])
+            .json(&json!({}))
+            .send()?
+            .json()?;
         Ok(result.get("needCaptcha").unwrap().as_bool().unwrap())
     }
 

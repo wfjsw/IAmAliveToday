@@ -1,9 +1,7 @@
-
-use curl::easy::List;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::{ParseError, Url};
-use crate::cpdaily::client::Client;
+use crate::cpdaily::client;
 use crate::cpdaily::loginprovider::{LoginProvider, iap, cas, rsa};
 
 pub enum LoginProviderType {
@@ -119,8 +117,8 @@ pub struct TenantDetail {
 
 impl Tenant {
     pub fn get_info(&self) -> anyhow::Result<TenantDetail> {
-        let url = format!("https://mobile.campushoy.com/v6/config/guest/tenant/info?ids={}", urlencoding::encode(&self.id));
-        let result = get(&url)?;
+        let result : Value = client::unauth()?.get("https://mobile.campushoy.com/v6/config/guest/tenant/info")
+            .send()?.json()?;
         Ok(serde_json::from_value(result.get("data").expect("Data not found").get(0).expect("School not found").to_owned())?)
     }
 
@@ -156,13 +154,3 @@ impl TenantDetail {
         Ok(format!("{}://{}", result.scheme(), result.host_str().unwrap()))
     }
 }
-
-fn get(url: &str) -> anyhow::Result<Value> {
-    let mut headers = List::new();
-    headers.append("Accept: application/json").unwrap();
-    headers.append("User-Agent: Mozilla/5.0 (Linux; U; Android 8.1.0; zh-cn; BLA-AL00 Build/HUAWEIBLA-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.132 MQQBrowser/8.9 Mobile Safari/537.36").unwrap();
-    let data = Client::perform(url, Some(headers), Some("GET"), None, true, None)?.1;
-    let parsed = serde_json::from_str(&data).expect("Parsing JSON");
-    Ok(parsed)
-}
-

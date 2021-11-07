@@ -34,8 +34,6 @@ pub enum Action {
     CounselorFormFill(crate::actions::CounselorFormFillAction),
 }
 
-
-
 pub fn load_config(path: &str) -> anyhow::Result<Config> {
     let mut file = File::open(path)?;
     let mut contents = String::new();

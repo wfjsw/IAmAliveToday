@@ -1,4 +1,4 @@
-use crate::cpdaily::client::Client;
+use reqwest::blocking::Client;
 
 use super::LoginProvider;
 

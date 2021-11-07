@@ -8,7 +8,7 @@ pub fn encrypt(plaintext: &str, key: Option<&[u8]>, iv: Option<&[u8]>) -> Result
     cipher_encrypt(cipher, key.unwrap_or(CPDAILY_DES_KEY), Some(iv.unwrap_or(CPDAILY_DES_IV)) ,plaintext.as_bytes())
 }
 
-pub fn decrypt(ciphertext: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>, ErrorStack> {
+pub fn decrypt(ciphertext: &[u8], key: Option<&[u8]>, iv: Option<&[u8]>) -> Result<Vec<u8>, ErrorStack> {
     let cipher = Cipher::des_cbc();
-    cipher_decrypt(cipher, key, Some(iv), ciphertext)
+    cipher_decrypt(cipher, key.unwrap_or(CPDAILY_DES_KEY), Some(iv.unwrap_or(CPDAILY_DES_IV)), ciphertext)
 }
