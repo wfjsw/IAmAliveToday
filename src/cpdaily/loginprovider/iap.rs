@@ -20,6 +20,25 @@ struct LoginParams {
     pub captcha: String,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IAPResponse<T> {
+    pub code: i64,
+    pub message: String,
+    pub result: T,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct LTResponse {
+    #[serde(rename = "_encryptSalt")]
+    pub encrypt_salt: String,
+    #[serde(rename = "_lt")]
+    pub lt: String,
+    pub forget_pwd_url: String,
+    pub need_captcha: bool,
+}
+
 impl LoginProvider for IAP {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
         // url = something.com/iap
@@ -72,5 +91,43 @@ impl IAP {
             .send()?
             .json()?;
         Ok(result.get("needCaptcha").unwrap().as_bool().unwrap())
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use reqwest::blocking::Client;
+
+    use super::LoginProvider;
+    use super::{IAP, IAPResponse, LTResponse};
+
+    #[test]
+    fn test_lt_deserialise() {
+        let response = r#"{"code":200,"message":"操作成功","result":{"_encryptSalt":"6044cb8792f0452c","_lt":"8adf66e6c0944f8da02d0befde246517","forgetPwdUrl":"/personCenter/new_password_retrieve/index.html","needCaptcha":false}}"#;
+        let parsed_response : IAPResponse<LTResponse> = serde_json::from_str(response).unwrap();
+        assert_eq!(parsed_response.code, 200);
+        assert_eq!(parsed_response.message, "操作成功");
+        assert_eq!(parsed_response.result.lt, "8adf66e6c0944f8da02d0befde246517");
+        assert_eq!(parsed_response.result.encrypt_salt, "6044cb8792f0452c");
+        assert_eq!(parsed_response.result.forget_pwd_url, "/personCenter/new_password_retrieve/index.html");
+        assert_eq!(parsed_response.result.need_captcha, false);
+    }
+
+    #[test]
+    fn test_iap_login() {
+        let iap_url = option_env!("IAP_URL");
+        let username = option_env!("IAP_USERNAME");
+        let password = option_env!("IAP_PASSWORD");
+        if iap_url.is_none() || username.is_none() || password.is_none() {
+            println!("IAP_URL, IAP_USERNAME, IAP_PASSWORD must be set. Skipping...");
+            return;
+        }
+        
+        let client = Client::builder().cookie_store(true).build().unwrap();
+        let iap = IAP {
+            url: iap_url.unwrap().to_string(),
+        };
+        iap.login(&client, &username.unwrap(), &password.unwrap()).unwrap();
     }
 }
