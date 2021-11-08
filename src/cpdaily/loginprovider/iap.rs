@@ -41,13 +41,30 @@ pub struct LTResponse {
 
 impl LoginProvider for IAP {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
-        // url = something.com/iap
-        // let lt_info = session.post_json(&format!("{}/security/lt", &self.url), json!({}), None, true)?;
-        let lt_info : Value = session.post(&format!("{}/security/lt", &self.url))
-            .json(&json!({}))
+        let portal_url = self.url.clone().replace("/iap", "/portal/login");
+        let anchor_response = session.get(&format!("{}/login", &self.url))
+            .query(&[("service", &portal_url)])
+            .send()?;
+        
+        if !anchor_response.status().is_redirection() {
+            return Err(anyhow::anyhow!("Unexpected non-redirection response on login page"));
+        }
+
+        let anchor_url = anchor_response.headers().get("Location").unwrap().to_str().unwrap();
+
+        let prior_lt = &anchor_url[anchor_url.find('=').unwrap() + 1..anchor_url.len()];
+
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.append("Accept", reqwest::header::HeaderValue::from_static("application/json, text/plain, */*"));
+        headers.append("X-Requested-With", reqwest::header::HeaderValue::from_static("XMLHttpRequest"));
+        headers.append("Referer", reqwest::header::HeaderValue::from_str(anchor_url)?);
+
+        let lt_info : IAPResponse<LTResponse> = session.post(&format!("{}/security/lt", &self.url))
+            .headers(headers.clone())
+            .form(&[("lt", prior_lt)])
             .send()?.json()?;
         let params = LoginParams {
-            lt: lt_info.get("result").unwrap().get("_lt").unwrap().as_str().unwrap().to_string(),
+            lt: lt_info.result.lt,
             remember_me: false,
             dllt: "".to_string(),
             mobile: "".to_string(),
@@ -56,22 +73,34 @@ impl LoginProvider for IAP {
             captcha: "".to_string(),
         };
 
-        let need_captcha = self.get_need_captcha_url(session, username)?;
+        let need_captcha = {
+            let result : Value = session.post(&format!("{}/checkNeedCaptcha", &self.url))
+                .headers(headers.clone())
+                .query(&[("username", username)])
+                .json(&json!({}))
+                .send()?
+                .json()?;
+            result.get("needCaptcha").unwrap().as_bool().unwrap()
+        };
 
         if need_captcha {
             todo!();
         }
 
         let login_result = session.post(&format!("{}/doLogin", &self.url))
+            .headers(headers.clone())
             .form(&params)
-            .body("")
             .send()?;
-
+        
         let result_obj : Value = login_result.json()?;
         let result_code = result_obj.get("resultCode").unwrap().as_str().unwrap();
         match result_code {
             "REDIRECT" => {
-                let redirect_url = result_obj.get("url").unwrap().get("redirectUrl").unwrap().as_str().unwrap();
+                let redirect_url = result_obj.get("url").unwrap().as_str().unwrap();
+                
+                #[cfg(test)]
+                assert_ne!(redirect_url, "", "Redirect URL is empty");
+
                 session.get(redirect_url).send()?;
                 Ok(())
             },
@@ -83,20 +112,10 @@ impl LoginProvider for IAP {
     }
 }
 
-impl IAP {
-    fn get_need_captcha_url(&self, session: &Client, username: &str) -> anyhow::Result<bool> {
-        let result : Value = session.post(&format!("{}/needCaptcha", &self.url))
-            .query(&[("username", username)])
-            .json(&json!({}))
-            .send()?
-            .json()?;
-        Ok(result.get("needCaptcha").unwrap().as_bool().unwrap())
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use reqwest::blocking::Client;
 
     use super::LoginProvider;
@@ -116,18 +135,22 @@ mod tests {
 
     #[test]
     fn test_iap_login() {
-        let iap_url = option_env!("IAP_URL");
-        let username = option_env!("IAP_USERNAME");
-        let password = option_env!("IAP_PASSWORD");
+        let iap_url = env::var_os("IAP_URL");
+        let username = env::var_os("IAP_USERNAME");
+        let password = env::var_os("IAP_PASSWORD");
         if iap_url.is_none() || username.is_none() || password.is_none() {
             println!("IAP_URL, IAP_USERNAME, IAP_PASSWORD must be set. Skipping...");
             return;
         }
         
-        let client = Client::builder().cookie_store(true).build().unwrap();
+        let client = Client::builder()
+            .cookie_store(true)
+            .redirect(reqwest::redirect::Policy::none())
+            .build().unwrap();
         let iap = IAP {
-            url: iap_url.unwrap().to_string(),
+            url: iap_url.unwrap().to_str().unwrap().to_string(),
         };
-        iap.login(&client, &username.unwrap(), &password.unwrap()).unwrap();
+
+        iap.login(&client, &username.unwrap().to_str().unwrap().to_string(), &password.unwrap().to_str().unwrap().to_string()).unwrap();
     }
 }
