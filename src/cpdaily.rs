@@ -1,21 +1,33 @@
 pub mod client;
 pub mod crypto;
-pub mod structs;
 pub mod loginprovider;
+pub mod structs;
 
+use anyhow::Result;
 use serde_json::Value;
 use std::str;
-use anyhow::Result;
 
 use self::structs::tenants::Tenant;
 
 pub fn get_all_tenants() -> Result<Vec<Tenant>> {
-    let response : Value = client::unauth()?.get("https://mobile.campushoy.com/v6/config/guest/tenant/list").send()?.json()?;
-    let tenants : Vec<Tenant> = serde_json::from_value(response.get("data").expect("Retrieving data from tenant list response").to_owned()).expect("Parsing tenant list");
+    let response: Value = client::unauth()?
+        .get("https://mobile.campushoy.com/v6/config/guest/tenant/list")
+        .send()?
+        .json()?;
+    let tenants: Vec<Tenant> = serde_json::from_value(
+        response
+            .get("data")
+            .expect("Retrieving data from tenant list response")
+            .to_owned(),
+    )
+    .expect("Parsing tenant list");
     Ok(tenants)
 }
 
-pub fn match_school_from_tenant_list<'a>(list: &'a Vec<Tenant>, identifier: &str) -> anyhow::Result<&'a Tenant> {
+pub fn match_school_from_tenant_list<'a>(
+    list: &'a Vec<Tenant>,
+    identifier: &str,
+) -> anyhow::Result<&'a Tenant> {
     for tenant in list {
         if tenant.id == identifier {
             return Ok(tenant);

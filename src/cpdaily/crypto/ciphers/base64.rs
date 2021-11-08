@@ -1,4 +1,7 @@
-use openssl::{base64::{decode_block, encode_block}, error::ErrorStack};
+use openssl::{
+    base64::{decode_block, encode_block},
+    error::ErrorStack,
+};
 
 pub fn encode(input: &[u8]) -> String {
     let mut output = String::with_capacity(input.len() * 5 / 3);
@@ -20,7 +23,7 @@ pub fn decode(input: &str) -> Result<Vec<u8>, ErrorStack> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpdaily::crypto::ciphers::base64::{encode, decode};
+    use crate::cpdaily::crypto::ciphers::base64::{decode, encode};
 
     #[test]
     fn test_base64() {

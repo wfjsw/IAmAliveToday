@@ -1,5 +1,8 @@
-use openssl::{error::ErrorStack, hash::{hash as openssl_hash, MessageDigest}};
 use hex::encode as hex_encode;
+use openssl::{
+    error::ErrorStack,
+    hash::{hash as openssl_hash, MessageDigest},
+};
 
 pub fn hash(input: &str) -> Result<String, ErrorStack> {
     // let mut out = String::with_capacity(32);
@@ -13,6 +16,9 @@ mod tests {
 
     #[test]
     fn test_md5() {
-        assert_eq!("bcf7dcea849a6efc9d3d5ca1bfd14b14", hash("thisismd5test").unwrap());
+        assert_eq!(
+            "bcf7dcea849a6efc9d3d5ca1bfd14b14",
+            hash("thisismd5test").unwrap()
+        );
     }
 }

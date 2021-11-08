@@ -1,13 +1,16 @@
-use openssl::{error::ErrorStack, rsa::{Rsa, Padding}};
+use openssl::{
+    error::ErrorStack,
+    rsa::{Padding, Rsa},
+};
 
-const CPDAILY_RSA_PUBLIC : &str = "-----BEGIN PUBLIC KEY-----
+const CPDAILY_RSA_PUBLIC: &str = "-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC5L0EDkXvc9DpIfDryhW3XeG2n
 dTImJSnXMbl5I0Fg9gL1/JkcQLaSnRCAtCtlgdO6ux5tYVwfPzRYVRTSTwN9DsfC
 JXoczEx0qkEc92P/JkBqNJf7nHNNnfjNFyAqLAp1+oAtjPT8Kv8kLq2QWjvP11AB
 4N4aDfA/ZiEFKAkRyQIDAQAB
 -----END PUBLIC KEY-----";
 
-const CPDAILY_RSA_PRIVATE : &str = "-----BEGIN PRIVATE KEY-----
+const CPDAILY_RSA_PRIVATE: &str = "-----BEGIN PRIVATE KEY-----
 MIICdgIBADANBgkqhkiG9w0BAQEFAASCAmAwggJcAgEAAoGBAM358ppVDBFK/0FT
 weirKUuRquFlDxOPrEOdqEYWA3pxl4GStbyBHZrUZi3hZHaA9GVOFioHsxBZXyvG
 nA6Tl6H1b0Dm0J6OlIsQ/UzSuuOeVtDFepnshm9zZKWNshmWhbVBLLHGYBA9lnzw
@@ -35,13 +38,16 @@ pub fn private_decrypt(data: &[u8], key: Option<&str>) -> Result<String, ErrorSt
     let rsa = Rsa::private_key_from_pem(key.unwrap_or(CPDAILY_RSA_PRIVATE).as_bytes())?;
     let mut decrypted = vec![0; rsa.size() as usize];
     rsa.private_decrypt(data, &mut decrypted, Padding::PKCS1)?;
-    Ok(String::from_utf8(decrypted).unwrap().trim_end_matches('\0').to_owned())
+    Ok(String::from_utf8(decrypted)
+        .unwrap()
+        .trim_end_matches('\0')
+        .to_owned())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::cpdaily::crypto::ciphers::rsa::{private_decrypt};
     use crate::cpdaily::crypto::ciphers::base64::decode;
+    use crate::cpdaily::crypto::ciphers::rsa::private_decrypt;
 
     #[test]
     fn test_rsa_decrypt() {

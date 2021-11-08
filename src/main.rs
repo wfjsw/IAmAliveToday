@@ -1,14 +1,14 @@
-mod cpdaily;
-mod config;
 mod actions;
+mod config;
+mod cpdaily;
 
-use std::{env, str};
 use cpdaily::client;
 use getopts::{Matches, Options};
+use std::{env, str};
 
-use cpdaily::crypto::traits::first_v2::FirstV2;
-use cpdaily::crypto::providers::first_v2;
 use config::Action;
+use cpdaily::crypto::providers::first_v2;
+use cpdaily::crypto::traits::first_v2::FirstV2;
 
 fn main() {
     #[cfg(build = "release")]
@@ -16,10 +16,13 @@ fn main() {
     let _guard = {
         let dsn = env!("SENTRY_DSN");
 
-        sentry::init((dsn.unwrap(), sentry::ClientOptions {
-            release: sentry::release_name!(),
-            ..Default::default()
-        }))
+        sentry::init((
+            dsn.unwrap(),
+            sentry::ClientOptions {
+                release: sentry::release_name!(),
+                ..Default::default()
+            },
+        ))
     };
     let cwd = env::current_dir().unwrap();
     let default_config_path = cwd.join("config.yml");
@@ -29,9 +32,11 @@ fn main() {
     if matches.opt_present("h") {
         return;
     }
-    
+
     // Load Config
-    let config_file_path = matches.opt_str("c").unwrap_or(default_config_path.to_str().unwrap().to_string());
+    let config_file_path = matches
+        .opt_str("c")
+        .unwrap_or(default_config_path.to_str().unwrap().to_string());
     let config = config::load_config(&config_file_path).expect("Config file not found");
 
     // Initialize crypto providers
@@ -45,22 +50,26 @@ fn main() {
         let client = client::new(&user).unwrap();
         let tenant = cpdaily::match_school_from_tenant_list(&tenant_list, &user.school).unwrap();
         let login_provider = tenant.create_login();
-        login_provider.login(&client, &user.username, &user.password).unwrap();
+        login_provider
+            .login(&client, &user.username, &user.password)
+            .unwrap();
 
         let tenant_detail = tenant.get_info().unwrap();
 
         let base_url = tenant_detail.get_url().unwrap();
         for action in user.actions {
             match action {
-                Action::CounselorFormFill(form_fill) => {
-                    actions::counselor_form_fill::perform(&client, &base_url, &form_fill).unwrap()
-                }
-                _ => unimplemented!("Unknown action type.")
+                Action::CounselorFormFill(form_fill) => actions::counselor_form_fill::perform(
+                    &client,
+                    &base_url,
+                    &form_fill,
+                    &first_v2_provider,
+                )
+                .unwrap(),
             };
         }
     }
 }
-
 
 fn parse_options() -> Matches {
     let args: Vec<String> = env::args().collect();
@@ -70,8 +79,10 @@ fn parse_options() -> Matches {
     opts.optopt("c", "config", "config file (default: config.yml)", "PATH");
     opts.optflag("h", "help", "print this help menu");
     let matches = match opts.parse(&args[1..]) {
-        Ok(m) => { m }
-        Err(f) => { panic!("{}", f.to_string()) }
+        Ok(m) => m,
+        Err(f) => {
+            panic!("{}", f.to_string())
+        }
     };
     if matches.opt_present("h") {
         print_usage(&program, opts);

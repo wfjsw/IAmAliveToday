@@ -1,6 +1,6 @@
-use std::{fs::File, io::Read};
 use crate::cpdaily::structs::extensions::Extensions;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::{fs::File, io::Read};
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Config {
@@ -29,7 +29,7 @@ pub struct DeviceInfo {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(tag="type")]
+#[serde(tag = "type")]
 pub enum Action {
     CounselorFormFill(crate::actions::CounselorFormFillAction),
 }
@@ -44,6 +44,7 @@ pub fn load_config(path: &str) -> anyhow::Result<Config> {
 
 impl User {
     pub fn get_cpdaily_extension(&self) -> String {
-        Extensions::from_user_id_and_deviceinfo(self.username.as_str(), &self.device_info).to_string()
+        Extensions::from_user_id_and_deviceinfo(self.username.as_str(), &self.device_info)
+            .to_string()
     }
 }

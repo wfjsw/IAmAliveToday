@@ -1,8 +1,8 @@
+use crate::cpdaily::client;
+use crate::cpdaily::loginprovider::{cas, iap, rsa, LoginProvider};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::{ParseError, Url};
-use crate::cpdaily::client;
-use crate::cpdaily::loginprovider::{LoginProvider, iap, cas, rsa};
 
 pub enum LoginProviderType {
     UNKNOWN,
@@ -24,7 +24,7 @@ pub struct Tenant {
     pub join_type: String,
     pub app_id: String,
     pub cas_login_url: String,
-    pub is_enter: i64
+    pub is_enter: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -92,7 +92,7 @@ pub struct TenantDetail {
     pub service_page_place: String,
     pub shop_url: String,
     pub short_name: String,
-    pub student_home_pages:  Vec<i64>,
+    pub student_home_pages: Vec<i64>,
     pub student_version: String,
     pub tao_banner_id: String,
     pub task_app_id: String,
@@ -117,9 +117,18 @@ pub struct TenantDetail {
 
 impl Tenant {
     pub fn get_info(&self) -> anyhow::Result<TenantDetail> {
-        let result : Value = client::unauth()?.get("https://mobile.campushoy.com/v6/config/guest/tenant/info")
-            .send()?.json()?;
-        Ok(serde_json::from_value(result.get("data").expect("Data not found").get(0).expect("School not found").to_owned())?)
+        let result: Value = client::unauth()?
+            .get("https://mobile.campushoy.com/v6/config/guest/tenant/info")
+            .send()?
+            .json()?;
+        Ok(serde_json::from_value(
+            result
+                .get("data")
+                .expect("Data not found")
+                .get(0)
+                .expect("School not found")
+                .to_owned(),
+        )?)
     }
 
     pub fn get_login_type(&self) -> LoginProviderType {
@@ -133,16 +142,22 @@ impl Tenant {
                 } else {
                     LoginProviderType::UNKNOWN
                 }
-            },
+            }
             _ => LoginProviderType::UNKNOWN,
-        }        
+        }
     }
 
     pub fn create_login(&self) -> Box<dyn LoginProvider> {
         match self.get_login_type() {
-            LoginProviderType::IAP => Box::new(iap::IAP{url: self.ids_url.to_owned()}),
-            LoginProviderType::CAS => Box::new(cas::CAS{url: self.ids_url.to_owned()}),
-            LoginProviderType::RSA => Box::new(rsa::RSA{url: self.ids_url.to_owned()}),
+            LoginProviderType::IAP => Box::new(iap::IAP {
+                url: self.ids_url.to_owned(),
+            }),
+            LoginProviderType::CAS => Box::new(cas::CAS {
+                url: self.ids_url.to_owned(),
+            }),
+            LoginProviderType::RSA => Box::new(rsa::RSA {
+                url: self.ids_url.to_owned(),
+            }),
             _ => unimplemented!(),
         }
     }
@@ -151,6 +166,10 @@ impl Tenant {
 impl TenantDetail {
     pub fn get_url(&self) -> Result<String, ParseError> {
         let result = Url::parse(&self.amp_url)?;
-        Ok(format!("{}://{}", result.scheme(), result.host_str().unwrap()))
+        Ok(format!(
+            "{}://{}",
+            result.scheme(),
+            result.host_str().unwrap()
+        ))
     }
 }

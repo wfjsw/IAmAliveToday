@@ -1,7 +1,7 @@
 use crate::config::User;
+use cached::proc_macro::cached;
 use reqwest::blocking::ClientBuilder;
 use reqwest::header::{HeaderMap, HeaderValue};
-use cached::proc_macro::cached;
 
 pub fn new(user: &User) -> Result<reqwest::blocking::Client, reqwest::Error> {
     let mut headers = HeaderMap::new();
@@ -17,7 +17,7 @@ pub fn new(user: &User) -> Result<reqwest::blocking::Client, reqwest::Error> {
         .build()
 }
 
-#[cached(name="CLIENT_UNAUTH", result = true)]
+#[cached(name = "CLIENT_UNAUTH", result = true)]
 pub fn unauth() -> Result<reqwest::blocking::Client, reqwest::Error> {
     ClientBuilder::new()
         .user_agent("Mozilla/5.0 (Linux; U; Android 8.1.0; zh-cn; BLA-AL00 Build/HUAWEIBLA-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/57.0.2987.132 MQQBrowser/8.9 Mobile Safari/537.36")

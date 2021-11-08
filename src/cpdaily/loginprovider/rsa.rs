@@ -1,4 +1,3 @@
-
 use reqwest::blocking::Client;
 
 use super::LoginProvider;
