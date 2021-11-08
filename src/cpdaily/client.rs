@@ -1,5 +1,3 @@
-use reqwest::blocking::Client;
-
 use crate::config::User;
 use reqwest::blocking::ClientBuilder;
 use reqwest::header::{HeaderMap, HeaderValue};
@@ -15,6 +13,7 @@ pub fn new(user: &User) -> Result<reqwest::blocking::Client, reqwest::Error> {
         .user_agent(&user.device_info.user_agent)
         .default_headers(headers)
         .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
         .build()
 }
 

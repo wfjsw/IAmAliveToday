@@ -1,4 +1,4 @@
-use reqwest::{StatusCode, blocking::Client};
+use reqwest::{blocking::Client};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -43,26 +43,23 @@ impl LoginProvider for IAP {
             todo!();
         }
 
-        // TODO: Fix this. This is wrong.
-
         let login_result = session.post(&format!("{}/doLogin", &self.url))
-            .query(&params)
+            .form(&params)
             .body("")
             .send()?;
 
-        if login_result.status() == StatusCode::FOUND {
-            // session.get(&login_result.1, None, true)?;
-            session.get(&login_result.headers().get("location").unwrap().to_str().unwrap().to_string()).send()?;
-            Ok(())
-        } else {
-            let result_obj : Value = login_result.json()?;
-            let result_code = result_obj.get("resultCode").unwrap().as_str().unwrap();
-            match result_code {
-                "CAPTCHA_NOTMATCH" => Err(anyhow::anyhow!("CAPTCHA_NOTMATCH")),
-                "FAIL_UPNOTMATCH" => Err(anyhow::anyhow!("FAIL_UPNOTMATCH")),
-                "LT_NOTMATCH" => panic!("LT_NOTMATCH"),
-                _ => unimplemented!(),
-            }
+        let result_obj : Value = login_result.json()?;
+        let result_code = result_obj.get("resultCode").unwrap().as_str().unwrap();
+        match result_code {
+            "REDIRECT" => {
+                let redirect_url = result_obj.get("url").unwrap().get("redirectUrl").unwrap().as_str().unwrap();
+                session.get(redirect_url).send()?;
+                Ok(())
+            },
+            "CAPTCHA_NOTMATCH" => Err(anyhow::anyhow!("CAPTCHA_NOTMATCH")),
+            "FAIL_UPNOTMATCH" => Err(anyhow::anyhow!("FAIL_UPNOTMATCH")),
+            "LT_NOTMATCH" => panic!("LT_NOTMATCH"),
+            _ => unimplemented!(),
         }
     }
 }
@@ -76,5 +73,4 @@ impl IAP {
             .json()?;
         Ok(result.get("needCaptcha").unwrap().as_bool().unwrap())
     }
-
 }
