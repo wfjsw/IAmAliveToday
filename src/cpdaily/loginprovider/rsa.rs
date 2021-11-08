@@ -7,7 +7,7 @@ pub struct RSA {
 }
 
 impl LoginProvider for RSA {
-    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
+    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String> {
         todo!()
     }
 }

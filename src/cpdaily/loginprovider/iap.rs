@@ -40,7 +40,7 @@ pub struct LTResponse {
 }
 
 impl LoginProvider for IAP {
-    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()> {
+    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String> {
         let portal_url = self.url.clone().replace("/iap", "/portal/login");
         let anchor_response = session
             .get(&format!("{}/login", &self.url))
@@ -119,11 +119,13 @@ impl LoginProvider for IAP {
             "REDIRECT" => {
                 let redirect_url = result_obj.get("url").unwrap().as_str().unwrap();
 
+                let token = &redirect_url[redirect_url.find('=').unwrap() + 1..redirect_url.len()];
+
                 #[cfg(test)]
-                assert_ne!(redirect_url, "", "Redirect URL is empty");
+                assert_ne!(token, "", "Token is empty");
 
                 session.get(redirect_url).send()?;
-                Ok(())
+                Ok(token.to_owned())
             }
             "CAPTCHA_NOTMATCH" => Err(anyhow::anyhow!("CAPTCHA_NOTMATCH")),
             "FAIL_UPNOTMATCH" => Err(anyhow::anyhow!("FAIL_UPNOTMATCH")),

@@ -5,5 +5,5 @@ pub mod iap;
 pub mod rsa;
 
 pub trait LoginProvider {
-    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<()>;
+    fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String>;
 }

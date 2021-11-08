@@ -1,45 +1,12 @@
+mod structs;
+
 use anyhow::{anyhow, Result};
 use reqwest::{blocking::Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-
+use serde_json::{Value, json};
+use structs::*;
 use crate::cpdaily::crypto::traits::first_v2::FirstV2;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CounselorResponse<T> {
-    pub code: String,
-    #[serde(default)]
-    pub message: String,
-    pub datas: T,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CounselorPaginator<T> {
-    pub total_size: i64,
-    pub page_size: i64,
-    pub page_number: i64,
-    pub rows: Vec<T>,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CollectorFormInstance {
-    pub wid: String,
-    pub instance_wid: i64,
-    pub form_wid: String,
-    pub priority: String,
-    pub subject: String,
-    pub content: String,
-    pub sender_user_name: String,
-    pub create_time: String,
-    pub start_time: String,
-    pub end_time: String,
-    pub current_time: String,
-    pub is_handled: i64,
-    pub is_read: i64,
-}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct CounselorFormFillAction {
@@ -65,13 +32,53 @@ pub fn perform(
             // skip filled forms
             continue;
         }
+
+        let form_detail = get_form_detail(session, base_url, &form.wid, form.instance_wid)?;
+        let mut form_fields = get_form_fields(session, base_url, &form.wid, &form.form_wid, 100, 1)?;
+        fill_fields(&mut form_fields, config);
+
     }
 
     Ok(())
 }
 
-// TODO: replace Value with some strong type
-pub fn get_form_list(
+fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) {
+    for field in form_fields.iter_mut() {
+        let field_type : i32 = field.get("field_type").unwrap().as_str().unwrap().parse::<i32>().unwrap();
+
+        let answer = get_answer_from_config(config, field.get("title").unwrap().as_str().unwrap());
+
+        if answer.is_some() {
+            // 1.文本 2.单选题 3.多选题 4.上传照片 5数字输入 6日期时间 7地址填写 8 量表 9 民族 10 政治面貌 11手机号 12 身份证 13 邮箱地址 14 文字投票 15 图文投票 16 手写签名 17 院系班级 18 学生选择 19判断题 20填空题 21 地图选点 22 政工选择 23备注说明
+            match field_type {
+                1 | 5 | 6 | 7 => {
+                    // text
+                    field.as_object_mut().unwrap().insert("value".to_string(), json!(&answer.unwrap()));
+                },
+                2 => {
+                    let ans = answer.clone().unwrap();
+                    // single choice
+                    let options : Vec<Value> = field.get("fieldItems").unwrap().as_array().unwrap().to_vec().into_iter().filter(|item| {
+                        &ans == item.get("content").unwrap().as_str().unwrap()
+                    }).collect();
+                    assert_eq!(options.len(), 1, "Unexpected filtered option length");
+                    let f = field.as_object_mut().unwrap();
+                    f.insert("fieldItems".to_string(), json!(f));
+                    f.insert("value".to_string(), json!(options[0].get("formWid").unwrap().as_str().unwrap()));
+                },
+                3 => {
+                    unimplemented!("multi choice");   
+                }
+                _ => {
+                    // other
+                    unimplemented!("unimplemented field type");
+                }
+            }
+        }
+    }
+}
+
+fn get_form_list(
     session: &Client,
     base_url: &str,
     page_size: u32,
@@ -107,6 +114,64 @@ pub fn get_form_list(
     }
 }
 
+fn get_form_detail(
+    session: &Client,
+    base_url: &str,
+    wid: &str,
+    instance_wid: i64,
+) -> Result<FormDetail> {
+    let result: CounselorResponse<FormDetail> = session
+        .post(format!(
+            "{}/wec-counselor-collector-apps/stu/collector/detailCollector",
+            base_url
+        ))
+        .json(&json!({
+            "collectorWid": wid,
+            "instanceWid": instance_wid,
+        }))
+        .send()?
+        .json()?;
+    Ok(result.datas)
+}
+
+fn get_form_fields(
+    session: &Client,
+    base_url: &str,
+    wid: &str,
+    form_wid: &str,
+    page_size: u32,
+    page_number: u32,
+) -> Result<Vec<Value>> {
+    let result: CounselorResponse<CounselorPaginator<Value>> = session
+        .post(format!(
+            "{}/wec-counselor-collector-apps/stu/collector/getFormFields",
+            base_url
+        ))
+        .json(&json!({
+            "pageSize": page_size,
+            "pageNumber": page_number,
+            "formWid": form_wid,
+            "collectorWid": wid,
+        }))
+        .send()?
+        .json()?;
+    Ok(result.datas.rows)
+}
+
+fn post_form(session: &Client, base_url: &str) -> Result<()> {
+    let result = session
+        .post(format!());
+}
+
+fn get_answer_from_config(config: &CounselorFormFillAction, question: &str) -> Option<String> {
+    for qa in config.form_data.iter() {
+        if question.contains(&qa.question) {
+            return Some(qa.answer.clone());
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use std::env;
@@ -117,7 +182,7 @@ mod tests {
     };
 
     use crate::actions::counselor_form_fill::{
-        CollectorFormInstance, CounselorPaginator, CounselorResponse,
+        CollectorFormInstance, CounselorPaginator, CounselorResponse, FormDetail, FormInfo,
     };
 
     #[test]
@@ -153,6 +218,70 @@ mod tests {
         );
         assert_eq!(parsed_response.datas.rows[0].is_handled, 1);
         assert_eq!(parsed_response.datas.rows[0].is_read, 1);
+    }
+
+    #[test]
+    fn test_counselor_form_detail_deserialise() {
+        let response = r#"{"code":"0","message":"SUCCESS","datas":{"collector":{"wid":"1234","instanceWid":2345,"formWid":"3456","priority":"4","endTime":"2021-11-08 23:59:00","currentTime":"2021-11-08 15:34:41","schoolTaskWid":"4567","isConfirmed":0,"senderUserName":"test(test)","createTime":"2021-11-08 00:16:31","attachmentUrls":null,"attachmentNames":null,"attachmentSizes":null,"isUserSubmit":1,"fetchStuLocation":true,"isLocationFailedSub":false,"address":"test123","subject":"test234"},"form":{"wid":"1234","formType":"0","formTitle":"test345","examTime":-1,"formContent":"https://wecres.cpdaily.com/counselor/test/html/test.html","backReason":null,"isBack":0,"attachments":[],"score":0,"stuScore":null,"confirmDesc":"确认已认真查看，且填写信息无误","isshowOrdernum":1,"isAnonymous":0,"isallowUpdated":1,"isshowScore":0,"isshowResult":1}}}"#;
+        let parsed_response: CounselorResponse<FormDetail> =
+            serde_json::from_str(response).unwrap();
+        assert_eq!(parsed_response.code, "0");
+        assert_eq!(parsed_response.message, "SUCCESS");
+        assert_eq!(parsed_response.datas.collector.wid, "1234");
+        assert_eq!(parsed_response.datas.collector.instance_wid, 2345);
+        assert_eq!(parsed_response.datas.collector.form_wid, "3456");
+        assert_eq!(parsed_response.datas.collector.priority, "4");
+        assert_eq!(
+            parsed_response.datas.collector.end_time,
+            "2021-11-08 23:59:00"
+        );
+        assert_eq!(
+            parsed_response.datas.collector.current_time,
+            "2021-11-08 15:34:41"
+        );
+        assert_eq!(parsed_response.datas.collector.school_task_wid, "4567");
+        assert_eq!(parsed_response.datas.collector.is_confirmed, 0);
+        assert_eq!(
+            parsed_response.datas.collector.sender_user_name,
+            "test(test)"
+        );
+        assert_eq!(
+            parsed_response.datas.collector.create_time,
+            "2021-11-08 00:16:31"
+        );
+        // assert_eq!(parsed_response.datas.collector.attachment_urls, None);
+        // assert_eq!(parsed_response.datas.collector.attachment_names, None);
+        // assert_eq!(parsed_response.datas.collector.attachment_sizes, None);
+        assert_eq!(parsed_response.datas.collector.is_user_submit, 1);
+        assert_eq!(parsed_response.datas.collector.fetch_stu_location, true);
+        assert_eq!(
+            parsed_response.datas.collector.is_location_failed_sub,
+            false
+        );
+        assert_eq!(parsed_response.datas.collector.address, "test123");
+        assert_eq!(parsed_response.datas.collector.subject, "test234");
+        assert_eq!(parsed_response.datas.form.wid, "1234");
+        assert_eq!(parsed_response.datas.form.form_type, "0");
+        assert_eq!(parsed_response.datas.form.form_title, "test345");
+        // assert_eq!(parsed_response.datas.form.exam_time, -1);
+        assert_eq!(
+            parsed_response.datas.form.form_content,
+            "https://wecres.cpdaily.com/counselor/test/html/test.html"
+        );
+        // assert_eq!(parsed_response.datas.form.back_reason, None);
+        // assert_eq!(parsed_response.datas.form.is_back, 0);
+        // assert_eq!(parsed_response.datas.form.attachments, vec![]);
+        // assert_eq!(parsed_response.datas.form.score, 0);
+        // assert_eq!(parsed_response.datas.form.stu_score, None);
+        assert_eq!(
+            parsed_response.datas.form.confirm_desc,
+            "确认已认真查看，且填写信息无误"
+        );
+        assert_eq!(parsed_response.datas.form.is_show_ordernum, 1);
+        assert_eq!(parsed_response.datas.form.is_anonymous, 0);
+        assert_eq!(parsed_response.datas.form.is_allow_updated, 1);
+        assert_eq!(parsed_response.datas.form.is_show_score, 0);
+        assert_eq!(parsed_response.datas.form.is_show_result, 1);
     }
 
     #[test]
