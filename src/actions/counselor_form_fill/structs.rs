@@ -27,7 +27,7 @@ pub struct CounselorPaginator<T> {
 #[serde(rename_all = "camelCase")]
 pub struct CollectorFormInstance {
     pub wid: String,
-    pub instance_wid: i64,
+    pub instance_wid: Option<i64>,
     pub form_wid: String,
     pub priority: String,
     pub subject: String,
@@ -46,7 +46,7 @@ pub struct CollectorFormInstance {
 #[serde(rename_all = "camelCase")]
 pub struct CollectorInfo {
     pub wid: String,
-    pub instance_wid: i64,
+    pub instance_wid: Option<i64>,
     pub form_wid: String,
     pub priority: String,
     pub end_time: String,
@@ -125,3 +125,33 @@ pub struct FormDetail {
 //     // ... useless items
 // }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormContentForSubmit {
+    pub form_wid: String,
+    pub address: String,
+    pub collect_wid: String,
+    pub instance_wid: Option<i64>,
+    pub school_task_wid: String,
+    pub form: Value,
+    pub ua_is_cpadaily: bool,
+    pub latitude: f64,
+    pub longitude: f64
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormSubmitRequest {
+    pub app_version: String,
+    pub system_name: String,
+    pub body_string: String,
+    pub sign: String,
+    pub model: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub cal_version: String,
+    pub system_version: String,
+    pub device_id: String,
+    pub user_id: String,
+    pub version: String,
+}

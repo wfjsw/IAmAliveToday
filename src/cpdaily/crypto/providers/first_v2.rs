@@ -63,24 +63,25 @@ impl Local {
 
 impl FirstV2 for Local {
     fn encrypt(&self, text: &str, key_type: KeyType) -> anyhow::Result<String> {
-        let key = match key_type {
-            KeyType::C => getak(CKEY, &self.chk),
-            KeyType::F => getak(FKEY, &self.fhk),
-        };
+        let key = self.get_key(key_type);
 
         let ciphertext = aes::encrypt(text.as_bytes(), &key.as_bytes(), IV).unwrap();
         Ok(base64::encode(&ciphertext))
     }
 
     fn decrypt(&self, text: &str, key_type: KeyType) -> anyhow::Result<String> {
-        let key = match key_type {
-            KeyType::C => getak(CKEY, &self.chk),
-            KeyType::F => getak(FKEY, &self.fhk),
-        };
+        let key = self.get_key(key_type);
 
         let ciphertext = base64::decode(text)?;
         let cleartext = aes::decrypt(&ciphertext, &key.as_bytes(), IV)?;
         Ok(String::from_utf8(cleartext).unwrap())
+    }
+
+    fn get_key(&self, key_type: KeyType) -> String {
+        match key_type {
+            KeyType::C => getak(CKEY, &self.chk),
+            KeyType::F => getak(FKEY, &self.fhk),
+        }
     }
 }
 

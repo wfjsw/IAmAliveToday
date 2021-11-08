@@ -5,7 +5,7 @@ use reqwest::{blocking::Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use structs::*;
-use crate::cpdaily::crypto::traits::first_v2::FirstV2;
+use crate::cpdaily::crypto::{ciphers::md5, traits::first_v2::{self, FirstV2}};
 
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub fn perform(
     session: &Client,
     base_url: &str,
     config: &CounselorFormFillAction,
-    first_v2_provider: &dyn FirstV2,
+    encryptor: &dyn FirstV2,
 ) -> Result<()> {
     let form_list = get_form_list(session, base_url, 20, 1)?;
 
@@ -36,7 +36,7 @@ pub fn perform(
         let form_detail = get_form_detail(session, base_url, &form.wid, form.instance_wid)?;
         let mut form_fields = get_form_fields(session, base_url, &form.wid, &form.form_wid, 100, 1)?;
         fill_fields(&mut form_fields, config);
-
+        post_form(session, base_url, &form_detail, encryptor)?;
     }
 
     Ok(())
@@ -68,7 +68,10 @@ fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) {
                 },
                 3 => {
                     unimplemented!("multi choice");   
-                }
+                },
+                4 => {
+                    unimplemented!("upload photo");
+                },
                 _ => {
                     // other
                     unimplemented!("unimplemented field type");
@@ -118,7 +121,7 @@ fn get_form_detail(
     session: &Client,
     base_url: &str,
     wid: &str,
-    instance_wid: i64,
+    instance_wid: Option<i64>,
 ) -> Result<FormDetail> {
     let result: CounselorResponse<FormDetail> = session
         .post(format!(
@@ -158,9 +161,31 @@ fn get_form_fields(
     Ok(result.datas.rows)
 }
 
-fn post_form(session: &Client, base_url: &str) -> Result<()> {
+fn post_form(session: &Client, base_url: &str, form_data: &FormContentForSubmit, encryptor: &dyn FirstV2) -> Result<()> {
+    let stringifyed_form = serde_json::to_string(form_data)?;
+    let encrypted_form = encryptor.encrypt(&stringifyed_form, first_v2::KeyType::F)?;
+    let key = encryptor.get_key(first_v2::KeyType::F);
+    let sign_hash = md5::hash(&format!("{}&{}", &stringifyed_form, &key))?;
+    let payload = FormSubmitRequest {
+        app_version: todo!(),
+        system_name: todo!(),
+        body_string: encrypted_form,
+        sign: sign_hash,
+        model: todo!(),
+        lat: todo!(),
+        lon: todo!(),
+        cal_version: todo!(),
+        system_version: todo!(),
+        device_id: todo!(),
+        user_id: todo!(),
+        version: todo!(),
+    };
     let result = session
-        .post(format!());
+        .post(format!("{}/wec-counselor-collector-apps/stu/collector/submitForm", base_url))
+        .json(&payload)
+        .send()?
+        .json()?;
+
 }
 
 fn get_answer_from_config(config: &CounselorFormFillAction, question: &str) -> Option<String> {
@@ -182,7 +207,7 @@ mod tests {
     };
 
     use crate::actions::counselor_form_fill::{
-        CollectorFormInstance, CounselorPaginator, CounselorResponse, FormDetail, FormInfo,
+        CollectorFormInstance, CounselorPaginator, CounselorResponse, FormDetail,
     };
 
     #[test]
@@ -197,7 +222,7 @@ mod tests {
         assert_eq!(parsed_response.datas.page_number, 1);
         assert_eq!(parsed_response.datas.rows.len(), 1);
         assert_eq!(parsed_response.datas.rows[0].wid, "1234");
-        assert_eq!(parsed_response.datas.rows[0].instance_wid, 2345);
+        assert_eq!(parsed_response.datas.rows[0].instance_wid, Some(2345));
         assert_eq!(parsed_response.datas.rows[0].form_wid, "3456");
         assert_eq!(parsed_response.datas.rows[0].priority, "4");
         assert_eq!(parsed_response.datas.rows[0].subject, "test");
@@ -228,7 +253,7 @@ mod tests {
         assert_eq!(parsed_response.code, "0");
         assert_eq!(parsed_response.message, "SUCCESS");
         assert_eq!(parsed_response.datas.collector.wid, "1234");
-        assert_eq!(parsed_response.datas.collector.instance_wid, 2345);
+        assert_eq!(parsed_response.datas.collector.instance_wid, Some(2345));
         assert_eq!(parsed_response.datas.collector.form_wid, "3456");
         assert_eq!(parsed_response.datas.collector.priority, "4");
         assert_eq!(
