@@ -22,7 +22,7 @@ url = "2.2.2"
 uuid = { version = "0.8", features = ["v4"] }
 
 [profile.release]
-lto = false
+lto = true
 
 [features]
 telemetry = []
