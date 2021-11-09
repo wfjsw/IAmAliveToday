@@ -1,23 +1,24 @@
 on:
   release:
-    types: [created]
-
+    types: [published]
+name: Upload Release Artifact
 jobs:
   release:
-    name: Release ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            archive: zip
+            ext: .exe
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            archive: tar.gz tar.xz
-          - target: x86_64-apple-darwin
-            archive: zip
+            ext: ""
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            ext: ""
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 
         uses: actions/checkout@master
@@ -27,6 +28,8 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+      - name: Use Cache
+        uses: Swatinem/rust-cache@v1.3.0
       - name: Build
         uses: actions-rs/cargo@v1
         env: 
@@ -34,3 +37,14 @@ jobs:
         with: 
           command: build
           args: --release --locked --features "telemetry"
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: target/release/i_am_alive_today${{ matrix.ext }}
+          asset_name: alivetoday-${{matrix.target}}${{matrix.ext}}
+          asset_content_type: application/octet-stream
+
+        
