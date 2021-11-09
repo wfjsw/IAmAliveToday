@@ -28,6 +28,9 @@ jobs:
       - name: Install vcpkg
         if: ${{ matrix.os == 'windows-latest' }}
         uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgGitCommitId: 4df8c6d7f0468264576f1d17401277b3d401b27f
+          doNotCache: true
       - name: Install OpenSSL
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
