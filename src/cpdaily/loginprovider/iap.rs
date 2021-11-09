@@ -121,7 +121,6 @@ impl LoginProvider for IAP {
 
                 let token = &redirect_url[redirect_url.find('=').unwrap() + 1..redirect_url.len()];
 
-                #[cfg(test)]
                 assert_ne!(token, "", "Token is empty");
 
                 session.get(redirect_url).send()?;
@@ -181,11 +180,13 @@ mod tests {
             url: iap_url.unwrap().to_str().unwrap().to_string(),
         };
 
-        iap.login(
+        let token = iap.login(
             &client,
             &username.unwrap().to_str().unwrap().to_string(),
             &password.unwrap().to_str().unwrap().to_string(),
         )
         .unwrap();
+
+        println!("{}", token);
     }
 }

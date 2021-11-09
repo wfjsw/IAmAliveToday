@@ -23,8 +23,8 @@ url = "2.2.2"
 urlencoding = "2.1.0"
 uuid = { version = "0.8", features = ["v4"] }
 
-# [profile.release]
-# lto = true
+[profile.release]
+lto = true
 
 [features]
 telemetry = ["sentry"]
