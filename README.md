@@ -48,3 +48,9 @@ users:
     ...
 
 ```
+
+## TODO
+
+- [ ] Support multi choice
+- [ ] Support photo upload
+- [ ] Support CAS login
