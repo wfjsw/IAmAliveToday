@@ -1,24 +1,26 @@
 mod actions;
 mod config;
 mod cpdaily;
+mod logger;
 
 use cpdaily::client;
 use getopts::{Matches, Options};
-use std::{env, str};
+use serde_json::json;
+use std::{collections::BTreeMap, env, str};
 
 use config::Action;
 use cpdaily::crypto::providers::first_v2;
 
 fn main() {
-    #[cfg(build = "release")]
-    #[cfg(feature = "sentry")]
+    #[cfg(feature = "telemetry")]
     let _guard = {
         let dsn = env!("SENTRY_DSN");
 
         sentry::init((
-            dsn.unwrap(),
+            dsn,
             sentry::ClientOptions {
                 release: sentry::release_name!(),
+                debug: cfg!(build = "debug"),
                 ..Default::default()
             },
         ))
@@ -35,8 +37,31 @@ fn main() {
     // Load Config
     let config_file_path = matches
         .opt_str("c")
-        .unwrap_or(default_config_path.to_str().unwrap().to_string());
+        .unwrap_or_else(|| default_config_path.to_str().unwrap().to_string());
     let config = config::load_config(&config_file_path).expect("Config file not found");
+
+    logger::log(sentry::Breadcrumb {
+        category: Some("config".to_string()),
+        message: Some("loaded config file".to_string()),
+        data: {
+            let mut bt = BTreeMap::new();
+            for u in &config.users {
+                bt.insert(
+                    format!("user-{}-{}", &u.school, &u.username),
+                    json!({
+                        "school": u.school,
+                        "username": u.username,
+                        "address": u.address,
+                        "device_info": u.device_info,
+                        "actions": u.actions,
+                    }),
+                );
+            }
+            bt
+        },
+        level: sentry::Level::Info,
+        ..Default::default()
+    });
 
     // Initialize crypto providers
     let first_v2_provider = first_v2::Local::new();
@@ -45,29 +70,77 @@ fn main() {
     let tenant_list = cpdaily::get_all_tenants().unwrap();
 
     // For each user
-    for user in config.users {
-        let client = client::new(&user).unwrap();
+    for user in &config.users {
+        logger::log(sentry::Breadcrumb {
+            category: Some("bus".to_string()),
+            message: Some(format!("start user {}:{}", &user.school, &user.username)),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
+
+        let client = client::new(user).unwrap();
         let tenant = cpdaily::match_school_from_tenant_list(&tenant_list, &user.school).unwrap();
+
+        logger::log(sentry::Breadcrumb {
+            category: Some("tenant_service".to_string()),
+            message: Some(format!(
+                "matched \"{}\" to tenant \"{}\"",
+                &user.school, &tenant.name
+            )),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
+
         let login_provider = tenant.create_login();
+
+        logger::log(sentry::Breadcrumb {
+            category: Some("login".to_string()),
+            message: Some(format!("use login provider {}", login_provider.get_type())),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
+
         login_provider
             .login(&client, &user.username, &user.password)
             .unwrap();
 
+        logger::log(sentry::Breadcrumb {
+            category: Some("login".to_string()),
+            message: Some(format!("logged in")),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
+
         let tenant_detail = tenant.get_info().unwrap();
 
         let base_url = tenant_detail.get_url().unwrap();
+
+        logger::log(sentry::Breadcrumb {
+            category: Some("bus".to_string()),
+            message: Some(format!("set base url to \"{}\"", &base_url)),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
+
         for action in &user.actions {
             match action {
                 Action::CounselorFormFill(form_fill) => actions::counselor_form_fill::perform(
                     &client,
                     &base_url,
-                    &form_fill,
-                    &user,
+                    form_fill,
+                    user,
                     &first_v2_provider,
                 )
                 .unwrap(),
             };
         }
+
+        logger::log(sentry::Breadcrumb {
+            category: Some("bus".to_string()),
+            message: Some(format!("end user {}:{}", &user.school, &user.username)),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
     }
 }
 

@@ -25,13 +25,11 @@ pub fn get_all_tenants() -> Result<Vec<Tenant>> {
 }
 
 pub fn match_school_from_tenant_list<'a>(
-    list: &'a Vec<Tenant>,
+    list: &'a [Tenant],
     identifier: &str,
 ) -> anyhow::Result<&'a Tenant> {
     for tenant in list {
-        if tenant.id == identifier {
-            return Ok(tenant);
-        } else if tenant.name.contains(identifier) {
+        if tenant.id == identifier || tenant.name.contains(identifier) {
             return Ok(tenant);
         }
     }

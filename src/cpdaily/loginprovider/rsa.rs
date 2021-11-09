@@ -12,4 +12,8 @@ impl LoginProvider for RSA {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String> {
         todo!()
     }
+
+    fn get_type(&self) -> &'static str {
+        "RSA"
+    }
 }

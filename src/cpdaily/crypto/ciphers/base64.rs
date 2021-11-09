@@ -8,7 +8,7 @@ pub fn encode(input: &[u8]) -> String {
     let chunks = input.chunks(15 * 3).enumerate();
     let len_chunks = chunks.len();
     chunks.for_each(|(i, chunk)| {
-        output.push_str(&encode_block(&chunk));
+        output.push_str(&encode_block(chunk));
         if i < len_chunks - 1 {
             output.push(' ');
         }

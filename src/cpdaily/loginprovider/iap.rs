@@ -132,6 +132,10 @@ impl LoginProvider for IAP {
             _ => unimplemented!(),
         }
     }
+
+    fn get_type(&self) -> &'static str {
+        "IAP"
+    }
 }
 
 #[cfg(test)]

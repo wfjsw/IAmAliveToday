@@ -2,12 +2,12 @@ use crate::cpdaily::structs::extensions::Extensions;
 use serde::{Deserialize, Serialize};
 use std::{fs::File, io::Read};
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Config {
     pub users: Vec<User>,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct User {
     pub school: String,
     pub username: String,
@@ -17,7 +17,7 @@ pub struct User {
     pub device_info: DeviceInfo,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub model: String,
     pub app_version: String,
@@ -29,7 +29,7 @@ pub struct DeviceInfo {
     pub user_agent: String,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Action {
     CounselorFormFill(crate::actions::CounselorFormFillAction),

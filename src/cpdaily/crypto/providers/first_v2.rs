@@ -5,8 +5,8 @@ use crate::cpdaily::client;
 use crate::cpdaily::crypto::ciphers::aes::{self, getak};
 use crate::cpdaily::crypto::ciphers::{base64, md5::hash, rsa};
 use crate::cpdaily::crypto::traits::first_v2::{FirstV2, KeyType};
-const CKEY: &'static str = "CNCytgOo";
-const FKEY: &'static str = "yZtuU8Qm";
+const CKEY: &str = "CNCytgOo";
+const FKEY: &str = "yZtuU8Qm";
 const IV: &[u8; 16] = b"\x01\x02\x03\x04\x05\x06\x07\x08\t\x01\x02\x03\x04\x05\x06\x07";
 
 pub struct Local {
@@ -21,10 +21,31 @@ impl Local {
         let raw_data =
             rsa::private_decrypt(&base64::decode(encrypted_data).unwrap(), None).unwrap();
         let splits: Vec<&str> = raw_data.split('|').collect();
-        Local {
-            chk: splits[1].to_owned(),
-            fhk: splits[2].to_owned(),
-        }
+
+        let chk = splits[1].to_string();
+        let fhk = splits[2].to_string();
+
+        #[cfg(feature = "sentry")]
+        sentry::add_breadcrumb(sentry::Breadcrumb {
+            category: Some("crypto.first_v2".to_string()),
+            message: Some("fetched first_v2 crypto keys".to_string()),
+            level: sentry::Level::Info,
+            data: {
+                let mut bt = BTreeMap::new();
+                bt.insert(
+                    "chk".to_string(),
+                    serde_json::to_value(chk.clone()).unwrap(),
+                );
+                bt.insert(
+                    "fhk".to_string(),
+                    serde_json::to_value(fhk.clone()).unwrap(),
+                );
+                bt
+            },
+            ..Default::default()
+        });
+
+        Local { chk, fhk }
     }
 }
 
@@ -73,7 +94,7 @@ impl FirstV2 for Local {
         let key = self.get_key(key_type);
 
         let ciphertext = base64::decode(text)?;
-        let cleartext = aes::decrypt(&ciphertext, &key.as_bytes(), IV)?;
+        let cleartext = aes::decrypt(&ciphertext, key.as_bytes(), IV)?;
         Ok(String::from_utf8(cleartext).unwrap())
     }
 

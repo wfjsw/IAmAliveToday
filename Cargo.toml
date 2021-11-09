@@ -13,7 +13,7 @@ getopts = "0.2.21"
 openssl = "0.10.38"
 reqwest = { version = "0.11", features = ["blocking", "json", "cookies"] }
 hex = "0.4"
-sentry = { version = "0.23.0", optional = true }
+sentry = { version = "0.23.0", features = ["anyhow"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.8"
@@ -27,4 +27,4 @@ uuid = { version = "0.8", features = ["v4"] }
 lto = true
 
 [features]
-telemetry = ["sentry"]
+telemetry = []

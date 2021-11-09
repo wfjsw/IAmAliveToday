@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use structs::*;
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CounselorFormFillAction {
     pub form_data: Vec<QA>,
     pub force_submit: bool,
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QA {
     pub question: String,
     pub answer: String,
@@ -37,18 +37,51 @@ pub fn perform(
     for form in form_list {
         if form.is_handled == 1 && !config.force_submit {
             // skip filled forms
+            crate::logger::log(sentry::Breadcrumb {
+                category: Some("counselor_form_fill".to_string()),
+                message: Some(format!(
+                    "skipping [{}]{} as it is already filled",
+                    &form.wid, &form.subject
+                )),
+                level: sentry::Level::Info,
+                ..Default::default()
+            });
             continue;
         }
+
+        crate::logger::log(sentry::Breadcrumb {
+            category: Some("counselor_form_fill".to_string()),
+            message: Some(format!("filling [{}]{}", &form.wid, &form.subject)),
+            level: sentry::Level::Info,
+            ..Default::default()
+        });
 
         let form_detail = get_form_detail(session, base_url, &form.wid, form.instance_wid)?;
         let mut form_fields =
             get_form_fields(session, base_url, &form.wid, &form.form_wid, 100, 1)?;
-        fill_fields(&mut form_fields, config)?;
+
+        crate::logger::log(sentry::Breadcrumb {
+            category: Some("counselor_form_fill".to_string()),
+            message: Some(format!(
+                "({}) fetched {} fields",
+                &form.wid,
+                form_fields.len()
+            )),
+            level: sentry::Level::Debug,
+            ..Default::default()
+        });
+
+        let fill_resp = fill_fields(&mut form_fields, config);
+        if fill_resp.is_err() {
+            let err = fill_resp.unwrap_err();
+            sentry::integrations::anyhow::capture_anyhow(&err);
+            return Err(anyhow!(err));
+        }
 
         let form_data = FormContentForSubmit {
             form_wid: form.form_wid,
             address: user.address.clone(),
-            collect_wid: form.wid,
+            collect_wid: form.wid.clone(),
             school_task_wid: form_detail.collector.school_task_wid,
             form: serde_json::Value::Array(form_fields),
             ua_is_cpadaily: true,
@@ -58,6 +91,13 @@ pub fn perform(
         };
 
         post_form(session, base_url, &form_data, user, encryptor)?;
+
+        crate::logger::log(sentry::Breadcrumb {
+            category: Some("counselor_form_fill".to_string()),
+            message: Some(format!("({}) posted", &form.wid)),
+            level: sentry::Level::Debug,
+            ..Default::default()
+        });
     }
 
     Ok(())
@@ -76,9 +116,11 @@ fn fill_fields(
             .parse::<i32>()
             .unwrap();
 
-        let answer = get_answer_from_config(config, field.get("title").unwrap().as_str().unwrap());
+        let title = field.get("title").unwrap().as_str().unwrap().to_string();
+        let answer = get_answer_from_config(config, &title);
 
         if answer.is_some() {
+            let answer_str = answer.unwrap();
             // 1.文本 2.单选题 3.多选题 4.上传照片 5数字输入 6日期时间 7地址填写 8 量表 9 民族 10 政治面貌 11手机号 12 身份证 13 邮箱地址 14 文字投票 15 图文投票 16 手写签名 17 院系班级 18 学生选择 19判断题 20填空题 21 地图选点 22 政工选择 23备注说明
             match field_type {
                 1 | 5 | 6 | 7 => {
@@ -86,10 +128,16 @@ fn fill_fields(
                     field
                         .as_object_mut()
                         .unwrap()
-                        .insert("value".to_string(), json!(&answer.unwrap()));
+                        .insert("value".to_string(), json!(&answer_str));
+
+                    crate::logger::log(sentry::Breadcrumb {
+                        category: Some("counselor_form_fill".to_string()),
+                        message: Some(format!("filled text field: {} => {}", &title, &answer_str)),
+                        level: sentry::Level::Debug,
+                        ..Default::default()
+                    });
                 }
                 2 => {
-                    let ans = answer.clone().unwrap();
                     // single choice
                     let options: Vec<Value> = field
                         .get("fieldItems")
@@ -103,7 +151,7 @@ fn fill_fields(
                                 .unwrap()
                                 .as_str()
                                 .unwrap()
-                                .contains(&ans)
+                                .contains(&answer_str)
                         })
                         .collect();
                     assert_eq!(options.len(), 1, "Unexpected filtered option length");
@@ -116,6 +164,16 @@ fn fill_fields(
                         .to_string();
                     f.insert("fieldItems".to_string(), serde_json::Value::Array(options));
                     f.insert("value".to_string(), json!(&wid));
+
+                    crate::logger::log(sentry::Breadcrumb {
+                        category: Some("counselor_form_fill".to_string()),
+                        message: Some(format!(
+                            "filled single-choice field: {} => {}",
+                            &title, &answer_str
+                        )),
+                        level: sentry::Level::Debug,
+                        ..Default::default()
+                    });
                 }
                 3 => {
                     unimplemented!("multi choice");
@@ -162,7 +220,7 @@ fn get_form_list(
                 result.json()?;
             let data = resp.datas;
             if data.total_size == 0 {
-                return Ok(vec![]);
+                Ok(vec![])
             } else {
                 Ok(data.rows)
             }
