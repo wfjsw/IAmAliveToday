@@ -33,12 +33,12 @@ impl Extensions {
         serde_urlencoded::to_string(self).unwrap()
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
 
     #[allow(dead_code)]
-    pub fn to_string_pretty(&self) -> String {
+    pub fn to_json_pretty(&self) -> String {
         serde_json::to_string_pretty(self).unwrap()
     }
 }

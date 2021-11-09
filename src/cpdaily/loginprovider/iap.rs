@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use super::LoginProvider;
 
-pub struct IAP {
+pub struct Iap {
     pub url: String,
 }
 
@@ -22,7 +22,7 @@ struct LoginParams {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct IAPResponse<T> {
+pub struct IapResponse<T> {
     pub code: i64,
     pub message: String,
     pub result: T,
@@ -30,7 +30,7 @@ pub struct IAPResponse<T> {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct LTResponse {
+pub struct LtResponse {
     #[serde(rename = "_encryptSalt")]
     pub encrypt_salt: String,
     #[serde(rename = "_lt")]
@@ -39,7 +39,7 @@ pub struct LTResponse {
     pub need_captcha: bool,
 }
 
-impl LoginProvider for IAP {
+impl LoginProvider for Iap {
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String> {
         let portal_url = self.url.clone().replace("/iap", "/portal/login");
         let anchor_response = session
@@ -76,7 +76,7 @@ impl LoginProvider for IAP {
             reqwest::header::HeaderValue::from_str(anchor_url)?,
         );
 
-        let lt_info: IAPResponse<LTResponse> = session
+        let lt_info: IapResponse<LtResponse> = session
             .post(&format!("{}/security/lt", &self.url))
             .headers(headers.clone())
             .form(&[("lt", prior_lt)])
@@ -145,12 +145,12 @@ mod tests {
     use reqwest::blocking::Client;
 
     use super::LoginProvider;
-    use super::{IAPResponse, LTResponse, IAP};
+    use super::{IapResponse, LtResponse, Iap};
 
     #[test]
     fn test_lt_deserialise() {
         let response = r#"{"code":200,"message":"操作成功","result":{"_encryptSalt":"6044cb8792f0452c","_lt":"8adf66e6c0944f8da02d0befde246517","forgetPwdUrl":"/personCenter/new_password_retrieve/index.html","needCaptcha":false}}"#;
-        let parsed_response: IAPResponse<LTResponse> = serde_json::from_str(response).unwrap();
+        let parsed_response: IapResponse<LtResponse> = serde_json::from_str(response).unwrap();
         assert_eq!(parsed_response.code, 200);
         assert_eq!(parsed_response.message, "操作成功");
         assert_eq!(
@@ -180,7 +180,7 @@ mod tests {
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .unwrap();
-        let iap = IAP {
+        let iap = Iap {
             url: iap_url.unwrap().to_str().unwrap().to_string(),
         };
 

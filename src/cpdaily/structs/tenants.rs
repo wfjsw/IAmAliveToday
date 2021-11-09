@@ -5,10 +5,10 @@ use serde_json::Value;
 use url::{ParseError, Url};
 
 pub enum LoginProviderType {
-    UNKNOWN,
-    IAP,
-    RSA,
-    CAS,
+    Unknown,
+    Iap,
+    Rsa,
+    Cas,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -134,29 +134,29 @@ impl Tenant {
 
     pub fn get_login_type(&self) -> LoginProviderType {
         match self.join_type.as_str() {
-            "CLOUD" => LoginProviderType::IAP,
+            "CLOUD" => LoginProviderType::Iap,
             "NOTCLOUD" => {
                 if self.ids_url.ends_with("/authserver") {
-                    LoginProviderType::CAS
+                    LoginProviderType::Cas
                 } else if self.ids_url.ends_with("/amp-auth-adapter") {
-                    LoginProviderType::RSA
+                    LoginProviderType::Rsa
                 } else {
-                    LoginProviderType::UNKNOWN
+                    LoginProviderType::Unknown
                 }
             }
-            _ => LoginProviderType::UNKNOWN,
+            _ => LoginProviderType::Unknown,
         }
     }
 
     pub fn create_login(&self) -> Box<dyn LoginProvider> {
         match self.get_login_type() {
-            LoginProviderType::IAP => Box::new(iap::IAP {
+            LoginProviderType::Iap => Box::new(iap::Iap {
                 url: self.ids_url.to_owned(),
             }),
-            LoginProviderType::CAS => Box::new(cas::CAS {
+            LoginProviderType::Cas => Box::new(cas::Cas {
                 url: self.ids_url.to_owned(),
             }),
-            LoginProviderType::RSA => Box::new(rsa::RSA {
+            LoginProviderType::Rsa => Box::new(rsa::Rsa {
                 url: self.ids_url.to_owned(),
             }),
             _ => unimplemented!(),

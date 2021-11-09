@@ -72,8 +72,7 @@ pub fn perform(
         });
 
         let fill_resp = fill_fields(&mut form_fields, config);
-        if fill_resp.is_err() {
-            let err = fill_resp.unwrap_err();
+        if let Err(err) = fill_resp {
             sentry::integrations::anyhow::capture_anyhow(&err);
             return Err(anyhow!(err));
         }
@@ -119,8 +118,7 @@ fn fill_fields(
         let title = field.get("title").unwrap().as_str().unwrap().to_string();
         let answer = get_answer_from_config(config, &title);
 
-        if answer.is_some() {
-            let answer_str = answer.unwrap();
+        if let Some(answer_str) = answer {
             // 1.文本 2.单选题 3.多选题 4.上传照片 5数字输入 6日期时间 7地址填写 8 量表 9 民族 10 政治面貌 11手机号 12 身份证 13 邮箱地址 14 文字投票 15 图文投票 16 手写签名 17 院系班级 18 学生选择 19判断题 20填空题 21 地图选点 22 政工选择 23备注说明
             match field_type {
                 1 | 5 | 6 | 7 => {

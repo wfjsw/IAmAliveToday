@@ -106,7 +106,7 @@ fn main() {
 
         logger::log(sentry::Breadcrumb {
             category: Some("login".to_string()),
-            message: Some(format!("logged in")),
+            message: Some("logged in".to_string()),
             level: sentry::Level::Info,
             ..Default::default()
         });

@@ -9,8 +9,8 @@ pub fn log(data: sentry::Breadcrumb) {
     println!(
         "[{}] {}: {}",
         level,
-        data.category.clone().unwrap_or("unknown".to_string()),
-        data.message.clone().unwrap_or("".to_string())
+        data.category.clone().unwrap_or_else(|| "unknown".to_string()),
+        data.message.unwrap_or_else(|| "unknown".to_string()),
     );
 
     #[cfg(feature = "telemetry")]

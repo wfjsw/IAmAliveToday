@@ -86,7 +86,7 @@ impl FirstV2 for Local {
     fn encrypt(&self, text: &str, key_type: KeyType) -> anyhow::Result<String> {
         let key = self.get_key(key_type);
 
-        let ciphertext = aes::encrypt(text.as_bytes(), &key.as_bytes(), IV).unwrap();
+        let ciphertext = aes::encrypt(text.as_bytes(), key.as_bytes(), IV).unwrap();
         Ok(base64::encode(&ciphertext))
     }
 

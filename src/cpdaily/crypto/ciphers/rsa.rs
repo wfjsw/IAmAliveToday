@@ -27,7 +27,7 @@ qcE2sdGKsNXswpIASU6maSxia2scPNx1smKS0FWlBf61Bst4CEWbyQJAZT69Xm1D
 QbHI5l5ymh+btw==
 -----END PRIVATE KEY-----";
 
-pub fn public_encrypt<'a>(data: &'a str, key: Option<&str>) -> Result<Vec<u8>, ErrorStack> {
+pub fn public_encrypt(data: &str, key: Option<&str>) -> Result<Vec<u8>, ErrorStack> {
     let rsa = Rsa::public_key_from_pem(key.unwrap_or(CPDAILY_RSA_PUBLIC).as_bytes())?;
     let mut encrypted = vec![0; rsa.size() as usize];
     rsa.public_encrypt(data.as_bytes(), &mut encrypted, Padding::PKCS1)?;
