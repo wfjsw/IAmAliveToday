@@ -44,8 +44,7 @@ pub fn load_config(path: &str) -> anyhow::Result<Config> {
 }
 
 impl User {
-    pub fn get_cpdaily_extension(&self) -> String {
+    pub fn get_cpdaily_extension(&self) -> Extensions {
         Extensions::from_user_id_and_deviceinfo(self.username.as_str(), &self.device_info)
-            .to_string()
     }
 }

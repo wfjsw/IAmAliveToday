@@ -15,3 +15,5 @@ Cargo.lock
 
 # VSCode workspace settings. May contains secrets for test env.
 .vscode/
+
+config.yml

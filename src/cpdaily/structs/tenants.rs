@@ -119,6 +119,7 @@ impl Tenant {
     pub fn get_info(&self) -> anyhow::Result<TenantDetail> {
         let result: Value = client::unauth()?
             .get("https://mobile.campushoy.com/v6/config/guest/tenant/info")
+            .query(&[("ids", &self.id)])
             .send()?
             .json()?;
         Ok(serde_json::from_value(

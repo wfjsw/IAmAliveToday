@@ -13,7 +13,7 @@ pub fn new(user: &User) -> anyhow::Result<reqwest::blocking::Client> {
     headers.insert(
         "Cpdaily-Extension",
         HeaderValue::from_str(&base64::encode(&des::encrypt(
-            &user.get_cpdaily_extension(),
+            &user.get_cpdaily_extension().to_string(),
             None,
             None,
         )?))?,

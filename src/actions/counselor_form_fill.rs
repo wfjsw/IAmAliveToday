@@ -16,6 +16,7 @@ use structs::*;
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct CounselorFormFillAction {
     pub form_data: Vec<QA>,
+    pub force_submit: bool,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -34,7 +35,7 @@ pub fn perform(
     let form_list = get_form_list(session, base_url, 20, 1)?;
 
     for form in form_list {
-        if form.is_handled == 1 {
+        if form.is_handled == 1 && !config.force_submit {
             // skip filled forms
             continue;
         }
@@ -62,10 +63,13 @@ pub fn perform(
     Ok(())
 }
 
-fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) -> anyhow::Result<()> {
+fn fill_fields(
+    form_fields: &mut Vec<Value>,
+    config: &CounselorFormFillAction,
+) -> anyhow::Result<()> {
     for field in form_fields.iter_mut() {
         let field_type: i32 = field
-            .get("field_type")
+            .get("fieldType")
             .unwrap()
             .as_str()
             .unwrap()
@@ -94,15 +98,24 @@ fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) -
                         .unwrap()
                         .to_vec()
                         .into_iter()
-                        .filter(|item| &ans == item.get("content").unwrap().as_str().unwrap())
+                        .filter(|item| {
+                            item.get("content")
+                                .unwrap()
+                                .as_str()
+                                .unwrap()
+                                .contains(&ans)
+                        })
                         .collect();
                     assert_eq!(options.len(), 1, "Unexpected filtered option length");
                     let f = field.as_object_mut().unwrap();
-                    f.insert("fieldItems".to_string(), json!(f));
-                    f.insert(
-                        "value".to_string(),
-                        json!(options[0].get("formWid").unwrap().as_str().unwrap()),
-                    );
+                    let wid = options[0]
+                        .get("itemWid")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        .to_string();
+                    f.insert("fieldItems".to_string(), serde_json::Value::Array(options));
+                    f.insert("value".to_string(), json!(&wid));
                 }
                 3 => {
                     unimplemented!("multi choice");
@@ -117,7 +130,10 @@ fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) -
             }
         } else if field.get("isRequired").unwrap().as_bool().unwrap() {
             // required field
-            return Err(anyhow!("Required field \"{}\" not found", field.get("title").unwrap().as_str().unwrap()));
+            return Err(anyhow!(
+                "Required field \"{}\" not found",
+                field.get("title").unwrap().as_str().unwrap()
+            ));
         }
     }
     Ok(())
@@ -211,10 +227,10 @@ fn post_form(
     encryptor: &dyn FirstV2,
 ) -> Result<()> {
     let json_stringifyed_form = serde_json::to_string(form_data)?;
-    let url_stringifyed_form = serde_urlencoded::to_string(form_data)?;
     let encrypted_form = encryptor.encrypt(&json_stringifyed_form, first_v2::KeyType::F)?;
     let key = encryptor.get_key(first_v2::KeyType::F);
-    let sign_hash = md5::hash(&format!("{}&{}", &url_stringifyed_form, &key))?;
+    let ext = user.get_cpdaily_extension().to_urlencoded();
+    let sign_hash = md5::hash(&format!("{}&{}", &ext, &key))?;
     let payload = FormSubmitRequest {
         app_version: user.device_info.app_version.clone(),
         system_name: user.device_info.system_name.clone(),
@@ -337,7 +353,10 @@ mod tests {
             parsed_response.datas.collector.is_location_failed_sub,
             false
         );
-        assert_eq!(parsed_response.datas.collector.address, "test123");
+        assert_eq!(
+            parsed_response.datas.collector.address,
+            Some("test123".to_string())
+        );
         assert_eq!(parsed_response.datas.collector.subject, "test234");
         assert_eq!(parsed_response.datas.form.wid, "1234");
         assert_eq!(parsed_response.datas.form.form_type, "0");

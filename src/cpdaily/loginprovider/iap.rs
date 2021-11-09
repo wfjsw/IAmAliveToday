@@ -180,12 +180,13 @@ mod tests {
             url: iap_url.unwrap().to_str().unwrap().to_string(),
         };
 
-        let token = iap.login(
-            &client,
-            &username.unwrap().to_str().unwrap().to_string(),
-            &password.unwrap().to_str().unwrap().to_string(),
-        )
-        .unwrap();
+        let token = iap
+            .login(
+                &client,
+                &username.unwrap().to_str().unwrap().to_string(),
+                &password.unwrap().to_str().unwrap().to_string(),
+            )
+            .unwrap();
 
         println!("{}", token);
     }

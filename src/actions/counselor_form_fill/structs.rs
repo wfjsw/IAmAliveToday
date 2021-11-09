@@ -62,7 +62,7 @@ pub struct CollectorInfo {
     pub is_user_submit: i64,
     pub fetch_stu_location: bool,
     pub is_location_failed_sub: bool,
-    pub address: String,
+    pub address: Option<String>,
     pub subject: String,
 }
 

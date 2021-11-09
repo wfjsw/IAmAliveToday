@@ -47,7 +47,7 @@ impl Local {
         // })).unwrap();
         let result = client::unauth()
             .unwrap()
-            .post("/app/auth/dynamic/secret/getSecretKey/v-8222")
+            .post("https://mobile.campushoy.com/app/auth/dynamic/secret/getSecretKey/v-8222")
             .json(&json!({
                 "p": encoded_p,
                 "s": hash(&s).unwrap(),

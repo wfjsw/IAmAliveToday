@@ -29,6 +29,10 @@ impl Extensions {
         }
     }
 
+    pub fn to_urlencoded(&self) -> String {
+        serde_urlencoded::to_string(self).unwrap()
+    }
+
     pub fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap()
     }
