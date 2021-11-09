@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,11 +66,11 @@ pub struct CollectorInfo {
     pub subject: String,
 }
 
-pub enum FormType {
-    Survey,
-    Exams,
-    Votes
-}
+// pub enum FormType {
+//     Survey,
+//     Exams,
+//     Votes,
+// }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,7 +114,7 @@ pub struct FormDetail {
 //     NumberInput,
 //     DateTime,
 //     Address,
-//     Matrix, 
+//     Matrix,
 //     EthnicGroup,
 //     PoliticalStatus,
 //     Mobile,
@@ -136,7 +137,7 @@ pub struct FormContentForSubmit {
     pub form: Value,
     pub ua_is_cpadaily: bool,
     pub latitude: f64,
-    pub longitude: f64
+    pub longitude: f64,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]

@@ -4,6 +4,7 @@ pub trait FirstV2 {
     fn get_key(&self, key_type: KeyType) -> String;
 }
 
+#[allow(dead_code)]
 pub enum KeyType {
     C,
     F,

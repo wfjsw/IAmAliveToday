@@ -586,6 +586,7 @@ dependencies = [
  "sentry",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "serde_yaml",
  "tempfile",
  "url",

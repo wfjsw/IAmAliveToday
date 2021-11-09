@@ -33,6 +33,7 @@ impl Extensions {
         serde_json::to_string(self).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn to_string_pretty(&self) -> String {
         serde_json::to_string_pretty(self).unwrap()
     }

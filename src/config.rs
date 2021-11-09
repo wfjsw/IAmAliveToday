@@ -12,6 +12,7 @@ pub struct User {
     pub school: String,
     pub username: String,
     pub password: String,
+    pub address: String,
     pub actions: Vec<Action>,
     pub device_info: DeviceInfo,
 }

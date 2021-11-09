@@ -8,7 +8,6 @@ use std::{env, str};
 
 use config::Action;
 use cpdaily::crypto::providers::first_v2;
-use cpdaily::crypto::traits::first_v2::FirstV2;
 
 fn main() {
     #[cfg(build = "release")]
@@ -57,12 +56,13 @@ fn main() {
         let tenant_detail = tenant.get_info().unwrap();
 
         let base_url = tenant_detail.get_url().unwrap();
-        for action in user.actions {
+        for action in &user.actions {
             match action {
                 Action::CounselorFormFill(form_fill) => actions::counselor_form_fill::perform(
                     &client,
                     &base_url,
                     &form_fill,
+                    &user,
                     &first_v2_provider,
                 )
                 .unwrap(),

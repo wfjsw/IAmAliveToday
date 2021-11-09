@@ -7,6 +7,8 @@ pub struct CAS {
 }
 
 impl LoginProvider for CAS {
+    // TODO: remove this lint hint when implementing this
+    #[allow(unused_variables)]
     fn login(&self, session: &Client, username: &str, password: &str) -> anyhow::Result<String> {
         todo!()
     }

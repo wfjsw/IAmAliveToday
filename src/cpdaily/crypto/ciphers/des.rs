@@ -20,6 +20,7 @@ pub fn encrypt(
     )
 }
 
+#[allow(dead_code)]
 pub fn decrypt(
     ciphertext: &[u8],
     key: Option<&[u8]>,

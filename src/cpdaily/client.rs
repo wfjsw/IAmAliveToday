@@ -1,20 +1,29 @@
 use crate::config::User;
+use crate::cpdaily::crypto::ciphers::{base64, des};
 use cached::proc_macro::cached;
 use reqwest::blocking::ClientBuilder;
 use reqwest::header::{HeaderMap, HeaderValue};
 
-pub fn new(user: &User) -> Result<reqwest::blocking::Client, reqwest::Error> {
+pub fn new(user: &User) -> anyhow::Result<reqwest::blocking::Client> {
     let mut headers = HeaderMap::new();
     headers.insert("clientType", HeaderValue::from_static("cpdaily_student"));
     headers.insert("deviceType", HeaderValue::from_static("1"));
     headers.insert("CpdailyClientType", HeaderValue::from_static("CPDAILY"));
     headers.insert("CpdailyStandAlone", HeaderValue::from_static("0"));
-    ClientBuilder::new()
+    headers.insert(
+        "Cpdaily-Extension",
+        HeaderValue::from_str(&base64::encode(&des::encrypt(
+            &user.get_cpdaily_extension(),
+            None,
+            None,
+        )?))?,
+    );
+    Ok(ClientBuilder::new()
         .user_agent(&user.device_info.user_agent)
         .default_headers(headers)
         .redirect(reqwest::redirect::Policy::none())
         .cookie_store(true)
-        .build()
+        .build()?)
 }
 
 #[cached(name = "CLIENT_UNAUTH", result = true)]

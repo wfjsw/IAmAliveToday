@@ -1,12 +1,17 @@
 mod structs;
 
+use crate::{
+    config::User,
+    cpdaily::crypto::{
+        ciphers::md5,
+        traits::first_v2::{self, FirstV2},
+    },
+};
 use anyhow::{anyhow, Result};
 use reqwest::{blocking::Client, StatusCode};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use structs::*;
-use crate::cpdaily::crypto::{ciphers::md5, traits::first_v2::{self, FirstV2}};
-
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct CounselorFormFillAction {
@@ -23,6 +28,7 @@ pub fn perform(
     session: &Client,
     base_url: &str,
     config: &CounselorFormFillAction,
+    user: &User,
     encryptor: &dyn FirstV2,
 ) -> Result<()> {
     let form_list = get_form_list(session, base_url, 20, 1)?;
@@ -34,17 +40,37 @@ pub fn perform(
         }
 
         let form_detail = get_form_detail(session, base_url, &form.wid, form.instance_wid)?;
-        let mut form_fields = get_form_fields(session, base_url, &form.wid, &form.form_wid, 100, 1)?;
-        fill_fields(&mut form_fields, config);
-        post_form(session, base_url, &form_detail, encryptor)?;
+        let mut form_fields =
+            get_form_fields(session, base_url, &form.wid, &form.form_wid, 100, 1)?;
+        fill_fields(&mut form_fields, config)?;
+
+        let form_data = FormContentForSubmit {
+            form_wid: form.form_wid,
+            address: user.address.clone(),
+            collect_wid: form.wid,
+            school_task_wid: form_detail.collector.school_task_wid,
+            form: serde_json::Value::Array(form_fields),
+            ua_is_cpadaily: true,
+            latitude: user.device_info.lat,
+            longitude: user.device_info.lon,
+            instance_wid: form.instance_wid,
+        };
+
+        post_form(session, base_url, &form_data, user, encryptor)?;
     }
 
     Ok(())
 }
 
-fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) {
+fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) -> anyhow::Result<()> {
     for field in form_fields.iter_mut() {
-        let field_type : i32 = field.get("field_type").unwrap().as_str().unwrap().parse::<i32>().unwrap();
+        let field_type: i32 = field
+            .get("field_type")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<i32>()
+            .unwrap();
 
         let answer = get_answer_from_config(config, field.get("title").unwrap().as_str().unwrap());
 
@@ -53,32 +79,48 @@ fn fill_fields(form_fields: &mut Vec<Value>, config: &CounselorFormFillAction) {
             match field_type {
                 1 | 5 | 6 | 7 => {
                     // text
-                    field.as_object_mut().unwrap().insert("value".to_string(), json!(&answer.unwrap()));
-                },
+                    field
+                        .as_object_mut()
+                        .unwrap()
+                        .insert("value".to_string(), json!(&answer.unwrap()));
+                }
                 2 => {
                     let ans = answer.clone().unwrap();
                     // single choice
-                    let options : Vec<Value> = field.get("fieldItems").unwrap().as_array().unwrap().to_vec().into_iter().filter(|item| {
-                        &ans == item.get("content").unwrap().as_str().unwrap()
-                    }).collect();
+                    let options: Vec<Value> = field
+                        .get("fieldItems")
+                        .unwrap()
+                        .as_array()
+                        .unwrap()
+                        .to_vec()
+                        .into_iter()
+                        .filter(|item| &ans == item.get("content").unwrap().as_str().unwrap())
+                        .collect();
                     assert_eq!(options.len(), 1, "Unexpected filtered option length");
                     let f = field.as_object_mut().unwrap();
                     f.insert("fieldItems".to_string(), json!(f));
-                    f.insert("value".to_string(), json!(options[0].get("formWid").unwrap().as_str().unwrap()));
-                },
+                    f.insert(
+                        "value".to_string(),
+                        json!(options[0].get("formWid").unwrap().as_str().unwrap()),
+                    );
+                }
                 3 => {
-                    unimplemented!("multi choice");   
-                },
+                    unimplemented!("multi choice");
+                }
                 4 => {
                     unimplemented!("upload photo");
-                },
+                }
                 _ => {
                     // other
                     unimplemented!("unimplemented field type");
                 }
             }
+        } else if field.get("isRequired").unwrap().as_bool().unwrap() {
+            // required field
+            return Err(anyhow!("Required field \"{}\" not found", field.get("title").unwrap().as_str().unwrap()));
         }
     }
+    Ok(())
 }
 
 fn get_form_list(
@@ -161,31 +203,43 @@ fn get_form_fields(
     Ok(result.datas.rows)
 }
 
-fn post_form(session: &Client, base_url: &str, form_data: &FormContentForSubmit, encryptor: &dyn FirstV2) -> Result<()> {
-    let stringifyed_form = serde_json::to_string(form_data)?;
-    let encrypted_form = encryptor.encrypt(&stringifyed_form, first_v2::KeyType::F)?;
+fn post_form(
+    session: &Client,
+    base_url: &str,
+    form_data: &FormContentForSubmit,
+    user: &User,
+    encryptor: &dyn FirstV2,
+) -> Result<()> {
+    let json_stringifyed_form = serde_json::to_string(form_data)?;
+    let url_stringifyed_form = serde_urlencoded::to_string(form_data)?;
+    let encrypted_form = encryptor.encrypt(&json_stringifyed_form, first_v2::KeyType::F)?;
     let key = encryptor.get_key(first_v2::KeyType::F);
-    let sign_hash = md5::hash(&format!("{}&{}", &stringifyed_form, &key))?;
+    let sign_hash = md5::hash(&format!("{}&{}", &url_stringifyed_form, &key))?;
     let payload = FormSubmitRequest {
-        app_version: todo!(),
-        system_name: todo!(),
+        app_version: user.device_info.app_version.clone(),
+        system_name: user.device_info.system_name.clone(),
         body_string: encrypted_form,
         sign: sign_hash,
-        model: todo!(),
-        lat: todo!(),
-        lon: todo!(),
-        cal_version: todo!(),
-        system_version: todo!(),
-        device_id: todo!(),
-        user_id: todo!(),
-        version: todo!(),
+        model: user.device_info.model.clone(),
+        lat: form_data.latitude,
+        lon: form_data.longitude,
+        cal_version: "firstv".to_string(),
+        system_version: user.device_info.system_version.clone(),
+        device_id: user.device_info.device_id.clone(),
+        user_id: user.username.clone(),
+        version: "first_v2".to_string(),
     };
     let result = session
-        .post(format!("{}/wec-counselor-collector-apps/stu/collector/submitForm", base_url))
+        .post(format!(
+            "{}/wec-counselor-collector-apps/stu/collector/submitForm",
+            base_url
+        ))
         .json(&payload)
-        .send()?
-        .json()?;
+        .send()?;
 
+    println!("{}", result.status());
+    println!("{}", result.text()?);
+    Ok(())
 }
 
 fn get_answer_from_config(config: &CounselorFormFillAction, question: &str) -> Option<String> {
