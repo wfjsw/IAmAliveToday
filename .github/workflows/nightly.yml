@@ -1,9 +1,7 @@
 on: [push, pull_request]
-
+name: Build nightly
 jobs:
-  release:
-    name: Release ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+  nightly:
     strategy:
       fail-fast: false
       matrix:
@@ -14,8 +12,11 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             archive: tar.gz tar.xz
-          - target: x86_64-apple-darwin
+          - os: macos-latest
+            target: x86_64-apple-darwin
             archive: zip
+    name: Build for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 
         uses: actions/checkout@master
