@@ -1,0 +1,36 @@
+on:
+  release:
+    types: [created]
+
+jobs:
+  release:
+    name: Release ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz tar.xz
+          - target: x86_64-apple-darwin
+            archive: zip
+    steps:
+      - name: Checkout 
+        uses: actions/checkout@master
+      - name: Toolchain
+        uses: actions-rs/toolchain@v1
+        with: 
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+      - name: Build
+        uses: actions-rs/cargo@v1
+        env: 
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        with: 
+          command: build
+          args: --release --locked --features "telemetry"
