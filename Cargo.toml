@@ -10,7 +10,7 @@ edition = "2021"
 anyhow = "1.0"
 cached = "0.26.2"
 getopts = "0.2.21"
-openssl = "0.10.38"
+openssl = { version = "0.10.38", features = ["vendored"] }
 reqwest = { version = "0.11", features = ["blocking", "json", "cookies"] }
 hex = "0.4"
 sentry = { version = "0.23.0", features = ["anyhow"] }
