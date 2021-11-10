@@ -8,10 +8,19 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            ext: .exe
+            archive: zip
+            archive_ext: .zip
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+            ext: ""
+            archive: tar
+            archive_ext: .tar.gz
           - os: macos-latest
             target: x86_64-apple-darwin
+            ext: ""
+            archive: tar
+            archive_ext: .tar.gz
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -54,12 +63,18 @@ jobs:
         with: 
           command: build
           args: --release --locked --features "telemetry"
+      - name: Move artifacts
+        run: |
+          mkdir -p artifacts
+          cp target/release/i_am_alive_today${{ matrix.ext }} artifacts/
+      - name: Move libraries
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          cp target/vcpkg/installed/x64-windows/bin/*.dll artifacts/
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.target }}
           path: |
-            target/release/i_am_alive_today
-            target/release/i_am_alive_today.exe
-            target/vcpkg/installed/x64-windows/bin/*.dll
+            artifacts/*
       
