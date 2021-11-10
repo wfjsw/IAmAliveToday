@@ -145,7 +145,7 @@ mod tests {
     use reqwest::blocking::Client;
 
     use super::LoginProvider;
-    use super::{IapResponse, LtResponse, Iap};
+    use super::{Iap, IapResponse, LtResponse};
 
     #[test]
     fn test_lt_deserialise() {
