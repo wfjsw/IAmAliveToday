@@ -60,6 +60,7 @@ jobs:
         env: 
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VCPKGRS_DYNAMIC: 1
+          NIGHTLY: ${{ github.sha }}
         with: 
           command: build
           args: --release --locked --features "telemetry"

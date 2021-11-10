@@ -92,5 +92,14 @@ jobs:
           asset_path: ./artifacts${{ matrix.archive_ext }}
           asset_name: alivetoday-${{matrix.target}}${{matrix.archive_ext}}
           asset_content_type: application/octet-stream
+      - name: Notify Sentry
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_URL: ${{ secrets.SENTRY_URL }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+        with:
+          environment: production
 
         

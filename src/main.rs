@@ -15,11 +15,15 @@ fn main() {
     #[cfg(feature = "telemetry")]
     let _guard = {
         let dsn = env!("SENTRY_DSN");
+        let nightly = option_env!("NIGHTLY");
 
         sentry::init((
             dsn,
             sentry::ClientOptions {
-                release: sentry::release_name!(),
+                release: match nightly {
+                    Some(sha) => Some(sha.into()),
+                    None => sentry::release_name!(),
+                },
                 debug: cfg!(build = "debug"),
                 ..Default::default()
             },
