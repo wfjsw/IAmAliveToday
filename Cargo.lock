@@ -575,7 +575,7 @@ dependencies = [
 
 [[package]]
 name = "i_am_alive_today"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "cached",

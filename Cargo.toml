@@ -1,6 +1,6 @@
 [package]
 name = "i_am_alive_today"
-version = "0.1.0"
+version = "0.1.1"
 description = "Do you know? I am alive today."
 edition = "2021"
 
