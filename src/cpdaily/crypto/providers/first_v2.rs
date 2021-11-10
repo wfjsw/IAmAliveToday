@@ -1,4 +1,7 @@
-use serde_json::{json, Value};
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 use uuid::Uuid;
 
 use crate::cpdaily::client;
@@ -14,19 +17,26 @@ pub struct Local {
     fhk: String,
 }
 
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetSecretResponse {
+    pub err_code: i32,
+    pub err_msg: Option<String>,
+    pub data: Option<String>,
+}
+
 impl Local {
-    fn from_server_response(response: Value) -> Self {
+    fn from_server_response(response: GetSecretResponse) -> Self {
         // example: {"errCode":0,"errMsg":null,"data":"sWBzAnDXCwawQ8V3qcXmG24HqHqPjRQwo98N2ADKGO2ghA37lveE+oirR0w7EubkGZx7bsi578P+gab8FUJEGPe/S8Bx1QCrWAbdEaeBFl6IEIuzWraxSBTguVAXtN0+9dh1w1rJK9Vkd1iLa72X233zCURdXLKhgb5zEpzpVok="}
-        let encrypted_data = response["data"].as_str().unwrap();
+        let encrypted_data = response.data.unwrap();
         let raw_data =
-            rsa::private_decrypt(&base64::decode(encrypted_data).unwrap(), None).unwrap();
+            rsa::private_decrypt(&base64::decode(&encrypted_data).unwrap(), None).unwrap();
         let splits: Vec<&str> = raw_data.split('|').collect();
 
         let chk = splits[1].to_string();
         let fhk = splits[2].to_string();
 
-        #[cfg(feature = "sentry")]
-        sentry::add_breadcrumb(sentry::Breadcrumb {
+        crate::logger::log(sentry::Breadcrumb {
             category: Some("crypto.first_v2".to_string()),
             message: Some("fetched first_v2 crypto keys".to_string()),
             level: sentry::Level::Info,
@@ -62,11 +72,7 @@ impl Local {
             encoded_p
         );
 
-        // let result = post_json("/app/auth/dynamic/secret/getSecretKey/v-8222", json!({
-        //     "p": encoded_p,
-        //     "s": hash(&s).unwrap(),
-        // })).unwrap();
-        let result = client::unauth()
+        let result: GetSecretResponse = client::unauth()
             .unwrap()
             .post("https://mobile.campushoy.com/app/auth/dynamic/secret/getSecretKey/v-8222")
             .json(&json!({
@@ -77,6 +83,28 @@ impl Local {
             .unwrap()
             .json()
             .unwrap();
+
+        crate::logger::log(sentry::Breadcrumb {
+            category: Some("crypto.first_v2".to_string()),
+            message: Some("getSecret returns".to_string()),
+            level: sentry::Level::Info,
+            data: {
+                let mut bt = BTreeMap::new();
+                bt.insert(
+                    "response".to_string(),
+                    serde_json::to_value(result.clone()).unwrap(),
+                );
+                bt
+            },
+            ..Default::default()
+        });
+
+        assert_eq!(
+            result.err_code,
+            0,
+            "getSecret returns non-zero: {}",
+            result.err_msg.unwrap_or("Unknown".to_string())
+        );
 
         Local::from_server_response(result)
     }
@@ -108,14 +136,12 @@ impl FirstV2 for Local {
 
 #[cfg(test)]
 mod tests {
-    use crate::cpdaily::crypto::providers::first_v2::Local;
-    use serde_json::json;
+    use crate::cpdaily::crypto::providers::first_v2::{GetSecretResponse, Local};
 
     #[test]
     fn test_parse_first_v2_get_secret_response() {
-        let key_object = Local::from_server_response(
-            json!({"errCode":0,"errMsg":null,"data":"sWBzAnDXCwawQ8V3qcXmG24HqHqPjRQwo98N2ADKGO2ghA37lveE+oirR0w7EubkGZx7bsi578P+gab8FUJEGPe/S8Bx1QCrWAbdEaeBFl6IEIuzWraxSBTguVAXtN0+9dh1w1rJK9Vkd1iLa72X233zCURdXLKhgb5zEpzpVok="}),
-        );
+        let resp: GetSecretResponse = serde_json::from_str(r#"{"errCode":0,"errMsg":null,"data":"sWBzAnDXCwawQ8V3qcXmG24HqHqPjRQwo98N2ADKGO2ghA37lveE+oirR0w7EubkGZx7bsi578P+gab8FUJEGPe/S8Bx1QCrWAbdEaeBFl6IEIuzWraxSBTguVAXtN0+9dh1w1rJK9Vkd1iLa72X233zCURdXLKhgb5zEpzpVok="}"#).unwrap();
+        let key_object = Local::from_server_response(resp);
         assert_eq!("7Cf7my4F", key_object.chk);
         assert_eq!("7Llv2JZZ", key_object.fhk);
     }
