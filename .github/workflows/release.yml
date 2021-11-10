@@ -30,26 +30,36 @@ jobs:
           override: true
       - name: Use Cache
         uses: Swatinem/rust-cache@v1.3.0
-      - name: Install vcpkg
+      - name: Install Cargo Vcpkg
         if: ${{ matrix.os == 'windows-latest' }}
-        uses: lukka/run-vcpkg@v10
+        uses: actions-rs/cargo@v1
+        with: 
+          command: install
+          args: cargo-vcpkg
+      - name: Cache vcpkg downloads
+        if: ${{ matrix.os == 'windows-latest' }}
+        uses: actions/cache@v2
         with:
-          vcpkgGitCommitId: 4df8c6d7f0468264576f1d17401277b3d401b27f
-          doNotCache: true
+          path: |
+            ~/AppData/Local/vcpkg/archives
+          key: ${{ runner.os }}-${{ hashFiles('Cargo.lock') }}-vcpkg
       - name: Install OpenSSL
         if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          cd vcpkg
-          vcpkg install openssl:x64-windows-static-md
-          vcpkg integrate install
-          cd .. 
+        uses: actions-rs/cargo@v1
+        with: 
+          command: vcpkg
+          args: build
       - name: Build
         uses: actions-rs/cargo@v1
         env: 
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VCPKGRS_DYNAMIC: 1
         with: 
           command: build
           args: --release --locked --features "telemetry"
+      - name: Zip Things
+        uses: TheDoctor0/zip-release@0.6.0
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:

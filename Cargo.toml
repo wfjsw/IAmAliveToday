@@ -21,8 +21,16 @@ serde_urlencoded = "0.7.0"
 url = "2.2.2"
 uuid = { version = "0.8", features = ["v4"] }
 
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "70033db"
+
+[package.metadata.vcpkg.target]
+x86_64-pc-windows-msvc = { triplet = "x64-windows", dependencies = ["openssl"] }
+
 [profile.release]
 lto = true
+incremental = true
 
 [features]
 telemetry = []
