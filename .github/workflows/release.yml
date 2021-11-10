@@ -96,6 +96,7 @@ jobs:
     name: Notify Sentry for Release
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Notify Sentry
         uses: getsentry/action-release@v1
         env:
