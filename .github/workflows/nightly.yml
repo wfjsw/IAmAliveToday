@@ -71,6 +71,10 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           cp target/vcpkg/installed/x64-windows/bin/*.dll artifacts/
+      - name: Strip binary
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          strip artifacts/i_am_alive_today${{ matrix.ext }}
       - name: Upload
         uses: actions/upload-artifact@v2
         with:

@@ -73,6 +73,10 @@ jobs:
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           cp target/vcpkg/installed/x64-windows/bin/*.dll artifacts/
+      - name: Strip binary
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          strip artifacts/i_am_alive_today${{ matrix.ext }}
       - name: Zip Things
         uses: TheDoctor0/zip-release@0.6.0
         with:
